@@ -999,19 +999,574 @@ from select * from B where B.id=A.id
 
 
 
+##### 模拟数据
 
+```sql
+create table tblA(
+#id int primary key not null auto_increment,
+age int,
+birth timestamp not null
+);
+
+insert into tblA(age, birth) values(22, now());
+insert into tblA(age, birth) values(23, now());
+insert into tblA(age, birth) values(24, now());
+
+create index idx_A_ageBirth on tblA(age, birth);
+```
+
+##### 查看执行计划
+
+###### 案例A
+
+```sql
+##order by 按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE age > 20 order by age;
+
+##order by 按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE age > 20 order by age,birth;
+
+##order by 没有按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE age > 20 order by birth;
+
+##order by 没有按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE  age > 20 order by birth,age;
+
+##order by 没有按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE birth > '2021-04-08 19:45:00' ORDER BY birth;
+
+##order by 按照索引顺序
+EXPLAIN SELECT * FROM tblA WHERE birth > '2021-04-08 19:45:00' ORDER BY age;
+```
+
+![](..\img\索引优化-order by 顺序.png)
+
+###### 案例B
+
+```sql
+EXPLAIN SELECT * FROM tblA ORDER BY age ASC,birth DESC;
+```
+
+![](..\img\索引优化-order by 排序不一致.png)
+
+##### 结论
+
+- MySQL支持两种方式的排序，index和filesort。index效率高，它是指扫描索引本身完成排序，filesort效率低。
+- ORDER BY子句，尽量使用Index方式排序，避免filesort方式排序。
+- ORDER BY子句满足两种情况，会使用index排序，一是ORDER BY子句采用遵照最佳左前缀法则，二是where条件字段和ORDER BY子句组合起来，满足最佳左前缀法则
+  排序分组优化
+- 
+
+#### MySQL的排序算法
+
+当发生 Using filesort 时，MySQL会根据自己的算法对查询结果进行排序
+
+##### 双路排序
+
+- MySQL 4.1 之前是使用双路排序,字面意思就是两次扫描磁盘，最终得到数据，读取行指针和 order by 列，对他们进行排序，然后扫描已经排序好的列表，按照列表中的值重新从列表中读取对应的数据输出.
+- 从磁盘取排序字段，在 buffer 进行排序，再从磁盘取其他字段
+  简单来说，取一批数据，要对磁盘进行了两次扫描，众所周知，I\O 是很耗时的，所以在 mysql4.1 之后，出现了第二种改进的算法，就是单路排序
+
+##### 单路排序
+
+- 从磁盘读取查询需要的所有列，按照 order by 列在 buffer 对它们进行排序，然后扫描排序后的列表进行输出， 它的效率更快一些，避免了第二次读取数据。并且把随机 IO 变成了顺序 IO,但是它会使用更多的空间， 因为它把每一行都保存在内存中了
+
+##### 存在的问题
+
+- 在 sort_buffer 中，方法 B 比方法 A 要多占用很多空间，因为方法 B 是把所有字段都取出, 所以有可能取出的数据的总大小超出了 sort_buffer 的容量，导致每次只能取 sort_buffer 容量大小的数据，进行排序（创建 tmp 文件，多 路合并），排完再取 sort_buffer 容量大小，再排……从而多次 I/O。也就是本来想省一次 I/O 操作，反而导致了大量的 I/O 操作，反而得不偿失
+
+##### 如何优化
+
+- **增大`sort_buffer_size`参数的设置**
+
+  不管用哪种算法，提高这个参数都会提高效率，当然，要根据系统的能力去提高，因为这个参数是针对每个进程的 1M-8M 之间调整
+
+- **增大`max_length_for_sort_data`参数的设置**
+
+  mysql 使用单路排序的前提是排序的字段大小要小于 **max_length_for_sort_data**， 提高这个参数，会增加使用改进算法的概率。
+
+  但是如果设的太高，数据总容量超出 sort_buffer_size 的概率反而会增大， 就会出现**高频磁盘 I/O** 和**低的处理器使用率**。（1024-8192 之间调整）
+
+- **减少 select 后面的查询的字段**（少用select *）
+
+  查询的字段减少，缓冲就能容纳更多的内容，也就相当于间接增大了**sort_buffer_size**
+
+##### 总结A
+
+![](..\img\order by 总结A.png)
+
+##### 总结B
+
+![](..\img\order by 总结B.png)
 
 #### group by 关键字优化
 
+GROUP BY 优化和ORDER BY大致类似
+
+
+
+先排序后进行分组 遵循最佳左前缀
+
+![](..\img\group by优化.png)
+
+#### 小总结
+
+- 要想在排序时使用索引，避免 Using filesort，可以采用索引覆盖
+- ORDER BY /GROUP BY后面字段的顺序要和复合索引的顺序完全一致
+- ORDER BY /GROUP BY后面的索引必须按照顺序出现，排在后面的可以不出现
+- 要进行升序或者降序时，字段的排序顺序必须一致。不能一部分升序，一部分降序，可以都升序或者都降序
+- 如果复合索引前面的字段作为常量出现在过滤条件中，排序字段可以为紧跟其后的字段
+
 ### 慢查询日志
 
- 
+####  慢查询日志定义
+
+- 慢查询日志是MySQL提供的一种日志记录，用来记录响应时间超过阀值的SQL语句。
+- 如果某条SQL语句运行时间超过**long_query_time**设定的值，就会被记录到慢查询日志中。
+- long_query_time的默认值为 10（10秒）
+- 由它来查看哪些SQL超出了我们的最大忍耐时间值，比如一条sql执行超过5秒钟，我们就算慢SQL，收集超过5秒的sql，结合之前explain进行全面分析
+
+#### 使用
+
+**`默认情况下，MySQL 数据库没有开启慢查询日志`**，需要我们手动来设置这个参数
+
+**`如果不是调优需要的话，一般不建议启动该参数`**，因为开启慢查询日志会将SQL语句写入日志，因此或多或少带来一定的性能影响。
+
+
+
+|                 SQL语句                 | 说明                              |
+| :-------------------------------------: | --------------------------------- |
+| SHOW VARIABLES LIKE '%slow_query_log%'; | 查看慢查询日志是否开启（默认OFF） |
+|      set global slow_query_log=1;       | 开启慢查询日志                    |
+|      set global slow_query_log=0;       | 关闭慢查询日志                    |
+| SHOW VARIABLES LIKE 'long_query_time%'; | 查看慢查询设定阈值（默认10秒）    |
+|          set long_query_time=5          | 设定慢查询阈值为5秒 （单位：秒 ） |
+
+
+
+#### 注意
+
+- set global slow_query_log=1开启慢查询日志，仅对当前数据库生效，MySQL重启后失效。
+- 如果需要永久生效，则需要修改`my.ini`配置文件，在`[mysqld]`下增加 `slow_query_log = 1`、`slow_query_log_file =user-slow.log`、`long_query_time = 5`和`log_output = FILE`（和数据库查询的一致）
+
+#### 永久配置
+
+```sql
+[mysqld]
+#日志输出为文件
+log-output=FILE
+# 配置慢查询，5.7版本默认为1
+#开启慢查询
+slow-query-log=1
+#日志路径
+slow_query_log_file="user-slow.log"
+#设置慢查询阈值为5秒
+long_query_time=5
+```
+
+#### 日志分析工具
+
+生产环境中手工查找，分析日志，非常的耗费时间，因此MySQL提供了日志分析工具`mysqldumpslow`
+
+##### 帮助信息
+
+![](..\img\mysqldumpslow命令参数.png)
+
+```sql
+--获取返回集最多的10条SQL
+mysqldumpslow -s r -t 10 user-slow.log
+--获取访问次数最多的10条SQL
+mysqldumpslow -s c -t 10 user-slow.log
+--获取按时间排序的前10条含有LEFT JOIN的SQL语句
+mysqldumpslow -s t -t 10 -g "LEFT JOIN" user-slow.log
+--结合|more使用，否则有可能会爆屏
+mysqldumpslow -s r -t 10 user-slow.log |more
+```
+
+
 
 ### 批量数据脚本
 
+#### 插入数据
+
+##### 建表语句
+
+```sql
+CREATE TABLE `dept`( 
+ `id` INT(11) NOT NULL AUTO_INCREMENT, 
+ `deptName` VARCHAR(30) DEFAULT NULL,
+  `address` VARCHAR(40) DEFAULT NULL, 
+  ceo INT NULL,
+  PRIMARY KEY(`id`)
+)ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+CREATE TABLE `emp`( 
+`id` INT(11) NOT NULL AUTO_INCREMENT,
+`empno` INT NOT NULL,
+`name` VARCHAR(20) DEFAULT NULL, 
+`age` INT(3) DEFAULT NULL, 
+`deptId` INT(11) DEFAULT NULL,
+PRIMARY KEY(`id`) 
+)ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+```
+
+##### 设置参数
+
+在执行创建函数之前，首先请保证 log_bin_trust_function_creators 参数为 1，即 on 开启状态。
+否则会报错：
+
+查询：
+
+```sql
+show variables like 'log_bin_trust_function_creators'; 
+```
+
+设置：
+
+```sql
+set global log_bin_trust_function_creators=1;
+```
+
+当然，如上设置只存在于当前操作，想要永久生效，需要写入到配置文件中：
+在[mysqld]中加上 ***log_bin_trust_function_creators***=1
+
+##### 编写随机函数
+
+创建函数,保证每条数据不同
+
+###### 随机产生字符串
+
+```sql
+DELIMITER $$
+CREATE FUNCTION rand_string(n INT) RETURNS VARCHAR(255)
+BEGIN
+DECLARE chars_str VARCHAR(100) DEFAULT  'abcdefghijklmnopqrstuvwxyzABCDEFJHIJKLMNOPQRSTUVWXYZ';
+DECLARE return_str VARCHAR(255) DEFAULT '';
+DECLARE i INT DEFAULT 0;
+WHILE i< n DO
+SET return_str=CONCAT(return_str,SUBSTRING(chars_str,FLOOR(1+RAND()*52),1));
+SET i=i+1;
+END WHILE;
+RETURN return_str;
+END $$
+```
+
+###### 随机产生部门编号
+
+```sql
+DELIMITER $$
+CREATE FUNCTION rand_num(from_num INT,to_num INT) RETURNS INT(11) 
+BEGIN DECLARE i INT DEFAULT 0; 
+SET i=FLOOR(from_num+RAND()*(to_num-from_num+1)) ;
+RETURN i; 
+END $$
+
+```
+
+##### 创建存储过程
+
+###### 创建往 emp 表中插入数据的存储过程
+
+```sql
+DELIMITER $$
+CREATE PROCEDURE insert_emp(START INT, MAX_NUM INT )
+BEGIN 
+DECLARE i INT DEFAULT 0;
+SET autocommit = 0;
+REPEAT
+SET i = i+1;
+INSERT INTO emp (empno, NAME ,age ,deptid ) VALUES ((START+i) ,rand_string(6) , rand_num(30,50),rand_num(1,10000)); 
+UNTIL i=max_num 
+END REPEAT;
+COMMIT;
+END $$
+```
+
+###### 创建往 dept 表中插入数据的存储过程
+
+```sql
+DELIMITER $$ 
+CREATE PROCEDURE `insert_dept`(max_num INT)
+BEGIN DECLARE i INT DEFAULT 0; 
+SET autocommit=0; 
+REPEAT SET i=i+1; 
+INSERT  INTO dept(deptname,address,ceo)VALUES(rand_string(8),rand_string(10),rand_num(1,500000)); UNTIL i=max_num
+END REPEAT;
+COMMIT; 
+END $$
+```
+
+##### 调用存储过程
+
+###### 添加数据到部门表
+
+```sql
+#执行存储过程，往 dept 表添加 10 万条数据 
+DELIMITER ; 
+CALL insert_dept(100000);
+
+```
+
+######  添加数据到员工表
+
+```sql
+#执行存储过程，往 emp 表添加 50 万条数据
+DELIMITER ; 
+CALL insert_emp(600000,500000);
+```
+
+
+
 ### show profile
 
+#### 定义
+
+- Show Profiles是MySQL提供，可以分析SQL语句执行的资源消耗情况，可用于SQL调优。
+- 通过配置profiling参数启用SQL剖析，该参数可以在全局和session级别来设置。
+- 全局级别作用于整个MySQL实例，而session级别只影响当前回话。
+- 该参数开启后，后续执行的SQL语句都将记录其资源开销，诸如IO，上下文切换，CPU，Memory等
+- Show profiles是5.0.37之后添加的，要想使用此功能，要确保MySQL版本 > 5.0.37。
+
+#### 如何使用
+
+```sql
+#查看数据库版本
+select version();
+
+#查看是否开启 profiling
+show variables like '%profiling%';
+
+##开启
+set profiling = 1;
+
+#查看最近的SQL 语句
+show profiles;
+
+```
+
+#### 帮助文档
+
+```sql
+#查看帮助信息
+help profile;
+Name: 'SHOW PROFILE'
+Description:
+Syntax:
+SHOW PROFILE [type [, type] ... ]
+    [FOR QUERY n]
+    [LIMIT row_count [OFFSET offset]]
+
+type: {
+    ALL
+  | BLOCK IO
+  | CONTEXT SWITCHES
+  | CPU
+  | IPC
+  | MEMORY
+  | PAGE FAULTS
+  | SOURCE
+  | SWAPS
+}
+
+The SHOW PROFILE and SHOW PROFILES statements display profiling
+information that indicates resource usage for statements executed
+during the course of the current session.
+
+*Note*:
+
+The SHOW PROFILE and SHOW PROFILES statements are deprecated and will
+be removed in a future MySQL release. Use the Performance Schema
+instead; see
+https://dev.mysql.com/doc/refman/5.7/en/performance-schema-query-profil
+ing.html.
+
+To control profiling, use the profiling session variable, which has a
+default value of 0 (OFF). Enable profiling by setting profiling to 1 or
+ON:
+
+mysql> SET profiling = 1;
+
+SHOW PROFILES displays a list of the most recent statements sent to the
+server. The size of the list is controlled by the
+profiling_history_size session variable, which has a default value of
+15. The maximum value is 100. Setting the value to 0 has the practical
+effect of disabling profiling.
+
+All statements are profiled except SHOW PROFILE and SHOW PROFILES, so
+you will find neither of those statements in the profile list.
+Malformed statements are profiled. For example, SHOW PROFILING is an
+illegal statement, and a syntax error occurs if you try to execute it,
+but it will show up in the profiling list.
+
+SHOW PROFILE displays detailed information about a single statement.
+Without the FOR QUERY n clause, the output pertains to the most
+recently executed statement. If FOR QUERY n is included, SHOW PROFILE
+displays information for statement n. The values of n correspond to the
+Query_ID values displayed by SHOW PROFILES.
+
+The LIMIT row_count clause may be given to limit the output to
+row_count rows. If LIMIT is given, OFFSET offset may be added to begin
+the output offset rows into the full set of rows.
+
+By default, SHOW PROFILE displays Status and Duration columns. The
+Status values are like the State values displayed by SHOW PROCESSLIST,
+although there might be some minor differences in interpretion for the
+two statements for some status values (see
+https://dev.mysql.com/doc/refman/5.7/en/thread-information.html).
+
+Optional type values may be specified to display specific additional
+types of information:
+
+o ALL displays all information
+
+o BLOCK IO displays counts for block input and output operations
+
+o CONTEXT SWITCHES displays counts for voluntary and involuntary
+  context switches
+
+o CPU displays user and system CPU usage times
+
+o IPC displays counts for messages sent and received
+
+o MEMORY is not currently implemented
+
+o PAGE FAULTS displays counts for major and minor page faults
+
+o SOURCE displays the names of functions from the source code, together
+  with the name and line number of the file in which the function
+  occurs
+
+o SWAPS displays swap counts
+
+Profiling is enabled per session. When a session ends, its profiling
+information is lost.
+
+URL: https://dev.mysql.com/doc/refman/5.7/en/show-profile.html
+
+Examples:
+mysql> SELECT @@profiling;
++-------------+
+| @@profiling |
++-------------+
+|           0 |
++-------------+
+1 row in set (0.00 sec)
+
+mysql> SET profiling = 1;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> DROP TABLE IF EXISTS t1;
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> CREATE TABLE T1 (id INT);
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> SHOW PROFILES;
++----------+----------+--------------------------+
+| Query_ID | Duration | Query                    |
++----------+----------+--------------------------+
+|        0 | 0.000088 | SET PROFILING = 1        |
+|        1 | 0.000136 | DROP TABLE IF EXISTS t1  |
+|        2 | 0.011947 | CREATE TABLE t1 (id INT) |
++----------+----------+--------------------------+
+3 rows in set (0.00 sec)
+
+mysql> SHOW PROFILE;
++----------------------+----------+
+| Status               | Duration |
++----------------------+----------+
+| checking permissions | 0.000040 |
+| creating table       | 0.000056 |
+| After create         | 0.011363 |
+| query end            | 0.000375 |
+| freeing items        | 0.000089 |
+| logging slow query   | 0.000019 |
+| cleaning up          | 0.000005 |
++----------------------+----------+
+7 rows in set (0.00 sec)
+
+mysql> SHOW PROFILE FOR QUERY 1;
++--------------------+----------+
+| Status             | Duration |
++--------------------+----------+
+| query end          | 0.000107 |
+| freeing items      | 0.000008 |
+| logging slow query | 0.000015 |
+| cleaning up        | 0.000006 |
++--------------------+----------+
+4 rows in set (0.00 sec)
+
+mysql> SHOW PROFILE CPU FOR QUERY 2;
++----------------------+----------+----------+------------+
+| Status               | Duration | CPU_user | CPU_system |
++----------------------+----------+----------+------------+
+| checking permissions | 0.000040 | 0.000038 |   0.000002 |
+| creating table       | 0.000056 | 0.000028 |   0.000028 |
+| After create         | 0.011363 | 0.000217 |   0.001571 |
+| query end            | 0.000375 | 0.000013 |   0.000028 |
+| freeing items        | 0.000089 | 0.000010 |   0.000014 |
+| logging slow query   | 0.000019 | 0.000009 |   0.000010 |
+| cleaning up          | 0.000005 | 0.000003 |   0.000002 |
++----------------------+----------+----------+------------+
+7 rows in set (0.00 sec)
+```
+
+##### 官网
+
+Performance Schema说明文档：https://dev.mysql.com/doc/refman/8.0/en/performance-schema-query-profiling.html
+SHOW PROFILE说明文档：https://dev.mysql.com/doc/refman/8.0/en/show-profile.html
+
+##### 使用
+
+```sql
+show profile for query 167;  -- 获取指定查询(Query_ID = 167)的开销
+-- 查看特定部分的开销，如下为CPU部分的开销  
+show profile cpu for query 167 ;
+-- 如下为MEMORY部分的开销  
+show profile memory for query 167 ; 
+-- 同时查看io和cpu
+show profile block io,cpu for query 167;  
+-- 下面的SQL语句用于查询query_id为2的SQL开销，且按最大耗用时间倒序排列  
+set @query_id=167;
+```
+
+#### 如果Status出现以下情况，需要进行SQL优化
+
+
+
+![](..\img\show profile 优化.png)
+
+1. converting HEAP to MyISAM 查询结果太大 内存都不够用了往磁盘上搬了。
+2. Creating tmp table 创建临时表：拷贝数据到临时表；用完还要删除
+3. Copying to tmp table on disk：把内存中的临时表数据复制到磁盘  危险！！！！！
+4. locked：锁住
+
+
+
 ### 全局查询日志
+
+- **千万不要在`生产环境`上开启此功能**
+- **千万不要在`生产环境`上开启此功能**
+- **千万不要在`生产环境`上开启此功能**
+
+
+
+#### 配置启用
+
+```sql
+[mysqld]
+# 是否开启sql执行结果记录，必须要设置general_log_file参数，日志的路径地址
+# 即日志跟踪，1为开启，0为关闭
+general-log=0
+general_log_file="execute_sql_result.log"
+```
+
+#### SQL 命令启用
+
+```sql
+set global general_log= 1 ;
+set global log_output='TABLE';
+```
 
 
 
@@ -1019,3 +1574,79 @@ from select * from B where B.id=A.id
 
 # MySQL锁机制
 
+## 锁的定义
+
+锁是计算机协调多个进程或线程并发访问某一资源的机制。
+
+- 在数据库中，除传统的计算资源（如CPU、RAM、I/O等）的争用以外，数据也是一种共享资源，如何保证数据并发访问的一致性、有效性是所有数据库必须解决的一个问题。
+- 锁冲突是影响数据库并发访问性能的一个重要因素，从这个角度来说，锁对数据库而言显得尤为重要，而且也更加复杂
+
+## 锁的分类
+
+从对数据的操作类型分为：**读锁**（共享锁）和 **写锁**（排他锁）
+
+读锁：针对同一份数据,对该数据的读操作可以同时进行且不受影响。
+
+写锁：写操作未完成前，会阻断其他的读操作和写操作
+
+从对数据的操作粒度可以分为：**表锁**和**行锁**
+
+### 表锁
+
+#### 表锁特点
+
+- MyISAM引擎使用表锁 开销小，加锁快，无死锁，锁定力度大，发生锁冲突的概率最高（？？？）
+- 并发度最低
+- 不支持事务
+
+#### 模拟数据
+
+```sql
+create table mylock (
+id int not null primary key auto_increment,
+name varchar(20) default ''
+) engine myisam;
+
+insert into mylock(name) values('a');
+insert into mylock(name) values('b');
+insert into mylock(name) values('c');
+insert into mylock(name) values('d');
+insert into mylock(name) values('e');
+
+select * from mylock;
+```
+
+#### 查看数据库锁
+
+```sql
+#查看数据库test中的表是否加锁
+show open tables in test;
+#book表加读锁  phone表加写锁
+lock table book read,phone write;
+#全部解锁
+unlock tables;
+```
+
+#### 表锁（读锁）
+
+**主机A给表加上表锁（读锁）**
+
+- 主机A和其他主机都可以读取该表的信息
+- 主机A不能读取其他表的信息，但其他主机可以读取库中其他表的信息
+- 主机A不能对锁住的表进行修改
+- 其他主机对表进行修改，会被阻塞，直到表锁（读锁）被释放
+
+#### 表锁（写锁)
+
+**主机A给表加上表锁（写锁）**
+
+- 主机A可以读取该表信息，但其他主机读取时，会进入阻塞状态，直到表锁（写锁）被释放
+- 主机A不能读取其他表的信息，但其他主机不能读取该表信息，但可以读取其他表的信息
+- 主机A可以对该表进行修改
+- 其他主机不能对该表进行修改，会被阻塞，直到表锁（写锁）被释放
+
+#### 总结
+
+![](..\img\表锁总结.png)
+
+**读锁不会阻塞读，只会阻塞写。但是写锁会阻塞读和写。**
