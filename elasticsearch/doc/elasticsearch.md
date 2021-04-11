@@ -551,13 +551,42 @@ PUT http://127.0.0.1:9200/student
 
 #### 高级查询
 
+##### 批量增加文档数据 
+
+使用json文件进行新增
+
+在 Postman 中，向 ES 服务器发 POST 请求:http://127.0.0.1:9200/bank/_bulk?pretty&refresh
+
+```http
+POST http://127.0.0.1:9200/bank/_bulk?pretty&refresh
+
+选择postman中body中的binary 上传json文件
+json格式为
+{
+ "account_number": 0,
+  "balance": 16623,
+  "firstname": "Bradshaw",
+  "lastname": "Mckenzie",
+  "age": 29,
+  "gender": "F",
+  "address": "244 Columbus Place",
+  "employer": "Euron",
+  "email": "bradshawmckenzie@euron.com",
+  "city": "Hobucken",
+  "state": "CO"
+
+}
+```
+
+
+
 
 
 Elasticsearch 提供了基于 JSON 提供完整的查询 DSL 来定义查询
 
 ##### 查询所有文档
 
-在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/student/_search
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
 
 ```json
 {
@@ -570,6 +599,7 @@ Elasticsearch 提供了基于 JSON 提供完整的查询 DSL 来定义查询
 #"query":这里的query代表一个查询对象，里面可以有不同的查询属性 
 #"match_all":查询类型，例如:match_all(代表查询所有)， match，term ， range 等等 
 #{查询条件}:查询条件会根据类型的不同，写法也有差异
+#不指定其他任何参数 只有列出最先查出的10条数据
 ```
 
 
@@ -588,7 +618,7 @@ Elasticsearch 提供了基于 JSON 提供完整的查询 DSL 来定义查询
 	},
 	"hits【搜索命中结果】": {
 			"total"【搜索条件匹配的文档总数】: {
-        "value"【总命中计数的值】: 3,
+        "value"【总命中计数的值】: 1000,
         "relation"【计数规则】: "eq"#eq 表示计数准确， gte 表示计数不准确
 		},
 		"max_score【匹配度分值】": 1.0,
@@ -599,22 +629,92 @@ Elasticsearch 提供了基于 JSON 提供完整的查询 DSL 来定义查询
 }
 ```
 
+##### 单字段排序
+
+sort 可以让我们按照不同的字段进行排序，并且通过 order 指定排序的方式。
+
+desc 降序，asc 升序。 
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "match_all": {}
+    },
+    "sort": {
+        "account_number": "asc"
+    }
+}
+#sort 根据哪些字段进行降序/升序
+```
+
+##### 多字段排序 
+
+假定我们想要结合使用 balance和age 进行查询，
+
+并且匹配的结果首先按照balance排序，然后 按照age排序 
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "match_all": {}
+    },
+    "sort": [
+        {
+            "balance": "asc"
+        },
+        {
+            "age": "desc"
+        }
+    ]
+}
+```
+
+
+
+##### 分页查询
+
+from：当前页的起始索引，默认从 0 开始。from = (pageNum - 1) * size 
+
+size：每页显示多少条  
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "match_all": {}
+    },
+    "sort":{
+         "account_number": "asc"
+    },
+    "from":10,
+    "size":20
+}
+```
+
+
+
 ##### 匹配查询
 
 match 匹配类型查询，会把查询条件进行分词，然后进行查询，多个词条之间是 or 的关系
 
-在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/student/_search
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
 
 ```http
-GET http://127.0.0.1:9200/student/_search
+GET http://127.0.0.1:9200/bank/_search
 
 {
-	"query":{
-			"match":{
-				"name":"zhangsan"
-			}
-	}
+    "query": {
+        "match": {
+            "address":"mill lane"
+        }
+    }
 }
+#match 匹配查询 会根据是否有keyword 进行分词查询
 ```
 
 
@@ -623,5 +723,362 @@ GET http://127.0.0.1:9200/student/_search
 
 multi_match 与 match 类似，不同的是它可以在多个字段中查询。
 
-在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/student/_search
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "multi_match": {
+            "query": "Winnie",
+            "fields": [
+                "firstname",
+                "email"
+            ]
+        }
+    }
+}
+#query 查询条件
+#fields 查询的字段
+```
+
+##### 关键字精确查询 
+
+term 查询，精确的关键词匹配查询，不对查询条件进行分词。 
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "term": {
+            "age": {
+                "value": "20"
+            }
+        }
+    }
+}
+
+#官网注释: 精确查找不适合text字段
+
+Avoid using the term query for text fields.
+
+By default, Elasticsearch changes the values of text fields as part of analysis. This can make finding exact matches for text field values difficult.
+
+To search text field values, use the match query instead.
+```
+
+##### 多关键字精确查询 
+
+terms 查询和 term 查询一样，但它允许你指定多值进行匹配。 如果这个字段包含了指定值中的任何一个值，那么这个文档满足条件，类似于 mysql 的 i
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```httlp
+{
+    "query": {
+        "terms": {
+            "age": [
+                "20",
+                "30",
+                "40"
+            ]
+        }
+    }
+}
+```
+
+##### 指定查询字段
+
+默认情况下，Elasticsearch 在搜索的结果中，会把文档中保存在_source 的所有字段都返回。
+ 如果我们只想获取其中的部分字段，我们可以添加_source 的过滤 
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "_source":["account_number","age"],
+    "query": {
+        "terms": {
+            "age": [
+                "20","30","40"
+            ]
+        }
+    }
+}
+```
+
+##### 过滤字段 
+
+也可以通过
+
+includes：来指定想要显示的字段
+
+excludes：来指定不想要显示的字段 
+
+```http
+{
+    "_source":{
+        "includes":["account_number","age"]
+    },
+    "query": {
+        "terms": {
+            "age": [
+                "20","30","40"
+            ]
+        }
+    }
+}
+```
+
+##### 组合查询 
+
+***bool***
+
+`bool`把各种其它查询通过`must`（必须 ）、`must_not`（必须不）、`should`（应该）的方 式进行组合 
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query": {
+        "bool": {
+            "must": [
+                {
+                    "match": {
+                        "age": 20
+                    }
+                }
+            ],
+            "must_not": [
+                {
+                    "match": {
+                        "gender": "M"
+                    }
+                }
+            ],
+            "should": [
+                {
+                    "match": {
+                        "city": "Finzel"
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+
+##### 范围查询 
+
+***range*** 查询
+
+range 查询找出那些落在指定区间内的数字或者时间。range 查询允许以下字符 
+
+| 操作符 |    说明    |
+| :----: | :--------: |
+|   gt   |   大于>    |
+|  gte   | 大于等于>= |
+|   lt   |   小于<    |
+|  lte   | 小于等于<= |
+
+在 Postman 中，向 ES 服务器发 GET 请求 :http://127.0.0.1:9200/bank/_search
+
+```http
+{
+    "query":{
+        "range":{
+            "age":{
+                "gte":"10",
+                "lte":"50"
+            }
+        }
+    }
+}
+```
+
+##### 模糊查询
+
+***fuzzy***查询
+
+返回包含与搜索字词相似的字词的文档。 
+
+编辑距离是将一个术语转换为另一个术语所需的一个字符更改的次数。这些更改可以包括：
+
+- 更改字符（box → fox)
+- 删除字符（black → lack)
+- 插入字符（sic → sick)
+- 转置两个相邻字符（act → cat） 
+
+为了找到相似的术语，fuzzy 查询会在指定的编辑距离内创建一组搜索词的所有可能的变体 或扩展。然后查询返回每个扩展的完全匹配。
+
+ 通过 fuzziness 修改编辑距离。一般使用默认值 AUTO，根据术语的长度生成编辑距离。 
+
+```http
+{
+    "query": {
+        "fuzzy": {
+            "address": {
+                "value": "Kings",
+                "fuzziness": "AUTO"
+            }
+        }
+    }
+}
+```
+
+##### 高亮查询
+
+在进行关键字搜索时，搜索出的内容中的关键字会显示不同的颜色，称之为高亮。 
+
+Elasticsearch 可以对查询内容中的关键字部分，进行标签和样式(高亮)的设置。 
+
+在使用 match 查询的同时，加上一个 highlight 属性：
+
+- pre_tags：前置标签
+- post_tags：后置标签
+- fields：需要高亮的字段
+- title：这里声明 title 字段需要高亮，后面可以为这个字段设置特有配置，也可以空 
+
+
+
+```http
+{
+    "query": {
+        "match": {
+            "age": 20
+        }
+    },
+    "highlight": {
+        "fields": {
+            "firstname": {}
+        }
+    }
+}
+```
+
+##### 聚合查询 
+
+聚合允许使用者对 es 文档进行统计分析，类似与关系型数据库中的 group by，当然还有很 多其他的聚合，例如取最大值、平均值等等。 
+
+###### 对某个取最大值max
+
+```http
+{
+    "aggs":{
+        "max_age":{ //该名称随意
+            "max":{
+                "field":"age"
+            }
+        }
+    },
+    "size":0
+}
+```
+
+###### 对某个字段取最小值min
+
+```http
+{
+    "aggs":{
+        "min_age":{
+            "min":{
+                "field":"age"
+            }
+        }
+    },
+    "size":0
+}
+```
+
+
+
+###### 对某个字段取平均值avg
+
+```http
+{
+    "aggs":{
+        "avg_age":{
+            "avg":{
+                "field":"age"
+            }
+        }
+    },
+    "size":0
+}
+```
+
+###### 对某个字段的值进行去重之后再取总cardinality
+
+```http
+{
+    "aggs":{
+        "distinct_age":{
+            "cardinality":{
+                "field":"age"
+            }
+        }
+    },
+    "size":0
+}
+```
+
+
+
+###### State 聚合 
+
+stats 聚合，对某个字段一次性返回 count，max，min，avg 和 sum 五个指标 
+
+```http
+{
+    "aggs": {
+        "stats_age": {
+            "stats": {
+                "field": "age"
+            }
+        }
+    },
+    "size": 0
+}
+```
+
+##### 桶聚合查询
+
+桶聚和相当于 sql 中的 group by 语句 
+
+###### terms 聚合，分组统计 
+
+```http
+{
+    "aggs":{
+        "age_groupby":{
+            "terms":{
+                "field":"age"
+            }
+        }
+    },
+    "size":0
+}
+```
+
+######  在 terms 分组下再进行聚合 
+
+```htp
+{
+    "aggs": {
+        "age_groupby": {
+            "terms": {
+                "field": "age"
+            },
+            "aggs": {
+                "sum_age": {
+                    "sum": {
+                        "field": "age"
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+```
 
