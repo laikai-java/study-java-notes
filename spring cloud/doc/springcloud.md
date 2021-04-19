@@ -1337,17 +1337,17 @@ public class OrderMain80
 
 实质：存 key 服务命取 value 闭用地址
 
-1 先启动 eureka 注主册中心
+1 先启动 eureka 注册中心
 
 2 启动服务提供者 payment 支付服务
 
-3 支付服务启动后会把自身信息 (比服务地址 L 以别名方式注朋进 eureka
+3 支付服务启动后会把自身信息 (比服务地址 L 以别名方式注册进 eureka
 
 4 消费者 order 服务在需要调用接口时，使用服务别名去注册中心获取实际的 RPC 远程调用地址
 
-5 消去者导调用地址后，底屋实际是利用 HttpClient 技术实现远程调用
+5 消费者获取调用地址后，底层实际是利用 HttpClient 技术实现远程调用
 
-6 消费者实癸导服务地址后会缓存在本地 jvm 内存中，默认每间隔 30 秒更新—次服务调用地址
+6 消费者获取服务地址后会缓存在本地 jvm 内存中，默认每间隔 30 秒更新—次服务调用地址
 
 问题: 微服务 RPC 远程服务调用最核心的是什么  
 高可用，试想你的注册中心只有一个 only one，万一它出故障了，会导致整个为服务环境不可用。
@@ -1361,9 +1361,7 @@ public class OrderMain80
 
 创建 cloud-eureka-server7002 工程，过程参考 [16_EurekaServer 服务端安装](#)
 
-#mermaid-svg-E28nidbn8ZpE73mT .label{font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family);fill:#333;color:#333}#mermaid-svg-E28nidbn8ZpE73mT .label text{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .node rect,#mermaid-svg-E28nidbn8ZpE73mT .node circle,#mermaid-svg-E28nidbn8ZpE73mT .node ellipse,#mermaid-svg-E28nidbn8ZpE73mT .node polygon,#mermaid-svg-E28nidbn8ZpE73mT .node path{fill:#ECECFF;stroke:#9370db;stroke-width:1px}#mermaid-svg-E28nidbn8ZpE73mT .node .label{text-align:center;fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .node.clickable{cursor:pointer}#mermaid-svg-E28nidbn8ZpE73mT .arrowheadPath{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .edgePath .path{stroke:#333;stroke-width:1.5px}#mermaid-svg-E28nidbn8ZpE73mT .flowchart-link{stroke:#333;fill:none}#mermaid-svg-E28nidbn8ZpE73mT .edgeLabel{background-color:#e8e8e8;text-align:center}#mermaid-svg-E28nidbn8ZpE73mT .edgeLabel rect{opacity:0.9}#mermaid-svg-E28nidbn8ZpE73mT .edgeLabel span{color:#333}#mermaid-svg-E28nidbn8ZpE73mT .cluster rect{fill:#ffffde;stroke:#aa3;stroke-width:1px}#mermaid-svg-E28nidbn8ZpE73mT .cluster text{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family);font-size:12px;background:#ffffde;border:1px solid #aa3;border-radius:2px;pointer-events:none;z-index:100}#mermaid-svg-E28nidbn8ZpE73mT .actor{stroke:#ccf;fill:#ECECFF}#mermaid-svg-E28nidbn8ZpE73mT text.actor>tspan{fill:#000;stroke:none}#mermaid-svg-E28nidbn8ZpE73mT .actor-line{stroke:grey}#mermaid-svg-E28nidbn8ZpE73mT .messageLine0{stroke-width:1.5;stroke-dasharray:none;stroke:#333}#mermaid-svg-E28nidbn8ZpE73mT .messageLine1{stroke-width:1.5;stroke-dasharray:2, 2;stroke:#333}#mermaid-svg-E28nidbn8ZpE73mT #arrowhead path{fill:#333;stroke:#333}#mermaid-svg-E28nidbn8ZpE73mT .sequenceNumber{fill:#fff}#mermaid-svg-E28nidbn8ZpE73mT #sequencenumber{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT #crosshead path{fill:#333;stroke:#333}#mermaid-svg-E28nidbn8ZpE73mT .messageText{fill:#333;stroke:#333}#mermaid-svg-E28nidbn8ZpE73mT .labelBox{stroke:#ccf;fill:#ECECFF}#mermaid-svg-E28nidbn8ZpE73mT .labelText,#mermaid-svg-E28nidbn8ZpE73mT .labelText>tspan{fill:#000;stroke:none}#mermaid-svg-E28nidbn8ZpE73mT .loopText,#mermaid-svg-E28nidbn8ZpE73mT .loopText>tspan{fill:#000;stroke:none}#mermaid-svg-E28nidbn8ZpE73mT .loopLine{stroke-width:2px;stroke-dasharray:2, 2;stroke:#ccf;fill:#ccf}#mermaid-svg-E28nidbn8ZpE73mT .note{stroke:#aa3;fill:#fff5ad}#mermaid-svg-E28nidbn8ZpE73mT .noteText,#mermaid-svg-E28nidbn8ZpE73mT .noteText>tspan{fill:#000;stroke:none}#mermaid-svg-E28nidbn8ZpE73mT .activation0{fill:#f4f4f4;stroke:#666}#mermaid-svg-E28nidbn8ZpE73mT .activation1{fill:#f4f4f4;stroke:#666}#mermaid-svg-E28nidbn8ZpE73mT .activation2{fill:#f4f4f4;stroke:#666}#mermaid-svg-E28nidbn8ZpE73mT .mermaid-main-font{font-family:"trebuchet ms", verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .section{stroke:none;opacity:0.2}#mermaid-svg-E28nidbn8ZpE73mT .section0{fill:rgba(102,102,255,0.49)}#mermaid-svg-E28nidbn8ZpE73mT .section2{fill:#fff400}#mermaid-svg-E28nidbn8ZpE73mT .section1,#mermaid-svg-E28nidbn8ZpE73mT .section3{fill:#fff;opacity:0.2}#mermaid-svg-E28nidbn8ZpE73mT .sectionTitle0{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .sectionTitle1{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .sectionTitle2{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .sectionTitle3{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .sectionTitle{text-anchor:start;font-size:11px;text-height:14px;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .grid .tick{stroke:#d3d3d3;opacity:0.8;shape-rendering:crispEdges}#mermaid-svg-E28nidbn8ZpE73mT .grid .tick text{font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .grid path{stroke-width:0}#mermaid-svg-E28nidbn8ZpE73mT .today{fill:none;stroke:red;stroke-width:2px}#mermaid-svg-E28nidbn8ZpE73mT .task{stroke-width:2}#mermaid-svg-E28nidbn8ZpE73mT .taskText{text-anchor:middle;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .taskText:not([font-size]){font-size:11px}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutsideRight{fill:#000;text-anchor:start;font-size:11px;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutsideLeft{fill:#000;text-anchor:end;font-size:11px}#mermaid-svg-E28nidbn8ZpE73mT .task.clickable{cursor:pointer}#mermaid-svg-E28nidbn8ZpE73mT .taskText.clickable{cursor:pointer;fill:#003163 !important;font-weight:bold}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutsideLeft.clickable{cursor:pointer;fill:#003163 !important;font-weight:bold}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutsideRight.clickable{cursor:pointer;fill:#003163 !important;font-weight:bold}#mermaid-svg-E28nidbn8ZpE73mT .taskText0,#mermaid-svg-E28nidbn8ZpE73mT .taskText1,#mermaid-svg-E28nidbn8ZpE73mT .taskText2,#mermaid-svg-E28nidbn8ZpE73mT .taskText3{fill:#fff}#mermaid-svg-E28nidbn8ZpE73mT .task0,#mermaid-svg-E28nidbn8ZpE73mT .task1,#mermaid-svg-E28nidbn8ZpE73mT .task2,#mermaid-svg-E28nidbn8ZpE73mT .task3{fill:#8a90dd;stroke:#534fbc}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutside0,#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutside2{fill:#000}#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutside1,#mermaid-svg-E28nidbn8ZpE73mT .taskTextOutside3{fill:#000}#mermaid-svg-E28nidbn8ZpE73mT .active0,#mermaid-svg-E28nidbn8ZpE73mT .active1,#mermaid-svg-E28nidbn8ZpE73mT .active2,#mermaid-svg-E28nidbn8ZpE73mT .active3{fill:#bfc7ff;stroke:#534fbc}#mermaid-svg-E28nidbn8ZpE73mT .activeText0,#mermaid-svg-E28nidbn8ZpE73mT .activeText1,#mermaid-svg-E28nidbn8ZpE73mT .activeText2,#mermaid-svg-E28nidbn8ZpE73mT .activeText3{fill:#000 !important}#mermaid-svg-E28nidbn8ZpE73mT .done0,#mermaid-svg-E28nidbn8ZpE73mT .done1,#mermaid-svg-E28nidbn8ZpE73mT .done2,#mermaid-svg-E28nidbn8ZpE73mT .done3{stroke:grey;fill:#d3d3d3;stroke-width:2}#mermaid-svg-E28nidbn8ZpE73mT .doneText0,#mermaid-svg-E28nidbn8ZpE73mT .doneText1,#mermaid-svg-E28nidbn8ZpE73mT .doneText2,#mermaid-svg-E28nidbn8ZpE73mT .doneText3{fill:#000 !important}#mermaid-svg-E28nidbn8ZpE73mT .crit0,#mermaid-svg-E28nidbn8ZpE73mT .crit1,#mermaid-svg-E28nidbn8ZpE73mT .crit2,#mermaid-svg-E28nidbn8ZpE73mT .crit3{stroke:#f88;fill:red;stroke-width:2}#mermaid-svg-E28nidbn8ZpE73mT .activeCrit0,#mermaid-svg-E28nidbn8ZpE73mT .activeCrit1,#mermaid-svg-E28nidbn8ZpE73mT .activeCrit2,#mermaid-svg-E28nidbn8ZpE73mT .activeCrit3{stroke:#f88;fill:#bfc7ff;stroke-width:2}#mermaid-svg-E28nidbn8ZpE73mT .doneCrit0,#mermaid-svg-E28nidbn8ZpE73mT .doneCrit1,#mermaid-svg-E28nidbn8ZpE73mT .doneCrit2,#mermaid-svg-E28nidbn8ZpE73mT .doneCrit3{stroke:#f88;fill:#d3d3d3;stroke-width:2;cursor:pointer;shape-rendering:crispEdges}#mermaid-svg-E28nidbn8ZpE73mT .milestone{transform:rotate(45deg) scale(0.8, 0.8)}#mermaid-svg-E28nidbn8ZpE73mT .milestoneText{font-style:italic}#mermaid-svg-E28nidbn8ZpE73mT .doneCritText0,#mermaid-svg-E28nidbn8ZpE73mT .doneCritText1,#mermaid-svg-E28nidbn8ZpE73mT .doneCritText2,#mermaid-svg-E28nidbn8ZpE73mT .doneCritText3{fill:#000 !important}#mermaid-svg-E28nidbn8ZpE73mT .activeCritText0,#mermaid-svg-E28nidbn8ZpE73mT .activeCritText1,#mermaid-svg-E28nidbn8ZpE73mT .activeCritText2,#mermaid-svg-E28nidbn8ZpE73mT .activeCritText3{fill:#000 !important}#mermaid-svg-E28nidbn8ZpE73mT .titleText{text-anchor:middle;font-size:18px;fill:#000;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT g.classGroup text{fill:#9370db;stroke:none;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family);font-size:10px}#mermaid-svg-E28nidbn8ZpE73mT g.classGroup text .title{font-weight:bolder}#mermaid-svg-E28nidbn8ZpE73mT g.clickable{cursor:pointer}#mermaid-svg-E28nidbn8ZpE73mT g.classGroup rect{fill:#ECECFF;stroke:#9370db}#mermaid-svg-E28nidbn8ZpE73mT g.classGroup line{stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT .classLabel .box{stroke:none;stroke-width:0;fill:#ECECFF;opacity:0.5}#mermaid-svg-E28nidbn8ZpE73mT .classLabel .label{fill:#9370db;font-size:10px}#mermaid-svg-E28nidbn8ZpE73mT .relation{stroke:#9370db;stroke-width:1;fill:none}#mermaid-svg-E28nidbn8ZpE73mT .dashed-line{stroke-dasharray:3}#mermaid-svg-E28nidbn8ZpE73mT #compositionStart{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #compositionEnd{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #aggregationStart{fill:#ECECFF;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #aggregationEnd{fill:#ECECFF;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #dependencyStart{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #dependencyEnd{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #extensionStart{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT #extensionEnd{fill:#9370db;stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT .commit-id,#mermaid-svg-E28nidbn8ZpE73mT .commit-msg,#mermaid-svg-E28nidbn8ZpE73mT .branch-label{fill:lightgrey;color:lightgrey;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .pieTitleText{text-anchor:middle;font-size:25px;fill:#000;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .slice{font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT g.stateGroup text{fill:#9370db;stroke:none;font-size:10px;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT g.stateGroup text{fill:#9370db;fill:#333;stroke:none;font-size:10px}#mermaid-svg-E28nidbn8ZpE73mT g.statediagram-cluster .cluster-label text{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT g.stateGroup .state-title{font-weight:bolder;fill:#000}#mermaid-svg-E28nidbn8ZpE73mT g.stateGroup rect{fill:#ECECFF;stroke:#9370db}#mermaid-svg-E28nidbn8ZpE73mT g.stateGroup line{stroke:#9370db;stroke-width:1}#mermaid-svg-E28nidbn8ZpE73mT .transition{stroke:#9370db;stroke-width:1;fill:none}#mermaid-svg-E28nidbn8ZpE73mT .stateGroup .composit{fill:white;border-bottom:1px}#mermaid-svg-E28nidbn8ZpE73mT .stateGroup .alt-composit{fill:#e0e0e0;border-bottom:1px}#mermaid-svg-E28nidbn8ZpE73mT .state-note{stroke:#aa3;fill:#fff5ad}#mermaid-svg-E28nidbn8ZpE73mT .state-note text{fill:black;stroke:none;font-size:10px}#mermaid-svg-E28nidbn8ZpE73mT .stateLabel .box{stroke:none;stroke-width:0;fill:#ECECFF;opacity:0.7}#mermaid-svg-E28nidbn8ZpE73mT .edgeLabel text{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .stateLabel text{fill:#000;font-size:10px;font-weight:bold;font-family:'trebuchet ms', verdana, arial;font-family:var(--mermaid-font-family)}#mermaid-svg-E28nidbn8ZpE73mT .node circle.state-start{fill:black;stroke:black}#mermaid-svg-E28nidbn8ZpE73mT .node circle.state-end{fill:black;stroke:white;stroke-width:1.5}#mermaid-svg-E28nidbn8ZpE73mT #statediagram-barbEnd{fill:#9370db}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-cluster rect{fill:#ECECFF;stroke:#9370db;stroke-width:1px}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-cluster rect.outer{rx:5px;ry:5px}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-state .divider{stroke:#9370db}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-state .title-state{rx:5px;ry:5px}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-cluster.statediagram-cluster .inner{fill:white}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-cluster.statediagram-cluster-alt .inner{fill:#e0e0e0}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-cluster .inner{rx:0;ry:0}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-state rect.basic{rx:5px;ry:5px}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-state rect.divider{stroke-dasharray:10,10;fill:#efefef}#mermaid-svg-E28nidbn8ZpE73mT .note-edge{stroke-dasharray:5}#mermaid-svg-E28nidbn8ZpE73mT .statediagram-note rect{fill:#fff5ad;stroke:#aa3;stroke-width:1px;rx:0;ry:0}:root{--mermaid-font-family: '"trebuchet ms", verdana, arial';--mermaid-font-family:"Comic Sans MS","Comic Sans", cursive}#mermaid-svg-E28nidbn8ZpE73mT .error-icon{fill:#522}#mermaid-svg-E28nidbn8ZpE73mT .error-text{fill:#522;stroke:#522}#mermaid-svg-E28nidbn8ZpE73mT .edge-thickness-normal{stroke-width:2px}#mermaid-svg-E28nidbn8ZpE73mT .edge-thickness-thick{stroke-width:3.5px}#mermaid-svg-E28nidbn8ZpE73mT .edge-pattern-solid{stroke-dasharray:0}#mermaid-svg-E28nidbn8ZpE73mT .edge-pattern-dashed{stroke-dasharray:3}#mermaid-svg-E28nidbn8ZpE73mT .edge-pattern-dotted{stroke-dasharray:2}#mermaid-svg-E28nidbn8ZpE73mT .marker{fill:#333}#mermaid-svg-E28nidbn8ZpE73mT .marker.cross{stroke:#333} :root { --mermaid-font-family: "trebuchet ms", verdana, arial;} #mermaid-svg-E28nidbn8ZpE73mT {color: rgba(0, 0, 0, 0.75); font: ; } Eureka  
-7001 Eureka  
-7002
+
 
 *   找到 C:\Windows\System32\drivers\etc 路径下的 hosts 文件，修改映射配置添加进 hosts 文件
 
@@ -1438,7 +1436,7 @@ eureka:
     1.  先要启动 EurekaServer，7001/7002 服务
     2.  再要启动服务提供者 provider，8001
     3.  再要启动消费者，80
-    4.  浏览器输入 - http://localhost/consumer/payment/get/1
+    4.  浏览器输入 - http://localhost/order/consumer/payment/get/1
 
 22_支付微服务集群配置
 ------------
@@ -1910,60 +1908,56 @@ public class PaymentController
     
 
 ```
-[zk: localhost:2181(CONNECTED) 0] ls /
-[services, zookeeper]
-[zk: localhost:2181(CONNECTED) 1] ls /services/cloud-provider-payment
-[a4567f50-6ad9-47a3-9fbb-7391f41a9f3d]
-[zk: localhost:2181(CONNECTED) 2] get /services/cloud-provider-payment/a4567f50-6ad9-47a3-9fbb-7391f41a9f3d
-{"name":"cloud-provider-payment","id":"a4567f50-6ad9-47a3-9fbb-7391f41a9f3d","address":"192.168.199.218","port":8004,"ss
-lPort":null,"payload":{"@class":"org.springframework.cloud.zookeeper.discovery.ZookeeperInstance","id":"application-1","
-name":"cloud-provider-payment","metadata":{}},"registrationTimeUTC":1612811116918,"serviceType":"DYNAMIC","uriSpec":{"pa
-rts":[{"value":"scheme","variable":true},{"value":"://","variable":false},{"value":"address","variable":true},{"value":"
-:","variable":false},{"value":"port","variable":true}]}}
-[zk: localhost:2181(CONNECTED) 3]
+[zk: localhost:2181(CONNECTED) 3] ls /
+[dubbo, services, zookeeper]
+[zk: localhost:2181(CONNECTED) 4] ls /services
+[zookeeper-cloud-provider-payment]
+[zk: localhost:2181(CONNECTED) 5] ls /services/zookeeper-cloud-provider-payment /
+dubbo       services    zookeeper
+[zk: localhost:2181(CONNECTED) 5] ls /services/zookeeper-cloud-provider-payment /
+'ls path [watch]' has been deprecated. Please use 'ls [-w] path' instead.
+[57d3b227-2733-4f4d-8701-8d26e258bfed]
+[zk: localhost:2181(CONNECTED) 6] ls /services/zookeeper-cloud-provider-payment/57d3b227-2733-4f4d-8701-8d26e258bfed
+[]
+[zk: localhost:2181(CONNECTED) 7] get /services/zookeeper-cloud-provider-payment/57d3b227-2733-4f4d-8701-8d26e258bfed
+{"name":"zookeeper-cloud-provider-payment","id":"57d3b227-2733-4f4d-8701-8d26e258bfed","address":"DESKTOP-9GB45MB","port":8084,"sslPort":null,"payload":{"@class":"org.springframework.cloud.zookeeper.discovery.ZookeeperInstance","id":"application-1","name":"zookeeper-cloud-provider-payment","metadata":{}},"registrationTimeUTC":1618713229034,"serviceType":"DYNAMIC","uriSpec":{"parts":[{"value":"scheme","variable":true},{"value":"://","variable":false},{"value":"address","variable":true},{"value":":","variable":false},{"value":"port","variable":true}]}}
 ```
 
 json 格式化 `get /services/cloud-provider-payment/a4567f50-6ad9-47a3-9fbb-7391f41a9f3d` 的结果：
 
 ```
 {
-    "name": "cloud-provider-payment", 
-    "id": "a4567f50-6ad9-47a3-9fbb-7391f41a9f3d", 
-    "address": "192.168.199.218", 
-    "port": 8004, 
-    "sslPort": null, 
-    "payload": {
-        "@class": "org.springframework.cloud.zookeeper.discovery.ZookeeperInstance", 
-        "id": "application-1", 
-        "name": "cloud-provider-payment", 
-        "metadata": { }
-    }, 
-    "registrationTimeUTC": 1612811116918, 
-    "serviceType": "DYNAMIC", 
-    "uriSpec": {
-        "parts": [
-            {
-                "value": "scheme", 
-                "variable": true
-            }, 
-            {
-                "value": "://", 
-                "variable": false
-            }, 
-            {
-                "value": "address", 
-                "variable": true
-            }, 
-            {
-                "value": ":", 
-                "variable": false
-            }, 
-            {
-                "value": "port", 
-                "variable": true
-            }
-        ]
-    }
+	"name": "zookeeper-cloud-provider-payment",
+	"id": "57d3b227-2733-4f4d-8701-8d26e258bfed",
+	"address": "DESKTOP-9GB45MB",
+	"port": 8084,
+	"sslPort": null,
+	"payload": {
+		"@class": "org.springframework.cloud.zookeeper.discovery.ZookeeperInstance",
+		"id": "application-1",
+		"name": "zookeeper-cloud-provider-payment",
+		"metadata": {}
+	},
+	"registrationTimeUTC": 1618713229034,
+	"serviceType": "DYNAMIC",
+	"uriSpec": {
+		"parts": [{
+			"value": "scheme",
+			"variable": true
+		}, {
+			"value": "://",
+			"variable": false
+		}, {
+			"value": "address",
+			"variable": true
+		}, {
+			"value": ":",
+			"variable": false
+		}, {
+			"value": "port",
+			"variable": true
+		}]
+	}
 }
 ```
 
@@ -2837,9 +2831,7 @@ public class RoundRobinRule extends AbstractLoadBalancerRule {
     private int incrementAndGetModulo(int modulo) {
         for (;;) {
             int current = nextServerCyclicCounter.get();
-            int next = (current + 1) % modulo;//求余法
-            if (nextServerCyclicCounter.compareAndSet(current, next))
-                return next;
+ 
         }
     }
 
@@ -3382,7 +3374,7 @@ Hystrix 是一个用于处理分布式系统的**延迟**和**容错**的开源�
 
 *   服务降级
 *   服务熔断
-*   接近实对的监控
+*   接近实时的监控
 *   …
 
 **官网资料**
@@ -3400,24 +3392,24 @@ Hystrix 是一个用于处理分布式系统的**延迟**和**容错**的开源�
 49_Hystrix 的服务降级熔断限流概念初讲
 ------------------------
 
-**服务降级**
+**服务降级** fallback
 
 服务器忙，请稍后再试，不让客户端等待并立刻返回一个友好提示，fallback
 
-**哪些情况会出发降级**
+**哪些情况会触发降级**
 
 *   程序运行导常
 *   超时
 *   服务熔断触发服务降级
 *   线程池 / 信号量打满也会导致服务降级
 
-**服务熔断**
+**服务熔断** break
 
 **类比保险丝**达到最大服务访问后，直接拒绝访问，拉闸限电，然后调用服务降级的方法并返回友好提示。
 
 服务的降级 -> 进而熔断 -> 恢复调用链路
 
-**服务限流**
+**服务限流** flowlimit
 
 秒杀高并发等操作，严禁一窝蜂的过来拥挤，大家排队，一秒钟 N 个，有序进行。
 
