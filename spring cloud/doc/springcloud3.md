@@ -132,7 +132,7 @@ db.password=1234
     *   `startup.sh - p 5555`
         
     *   查看 nacos 进程启动数 `ps -ef | grep nacos | grep -v grep | wc -l`
-        
+    
 *   启动 nginx
     
     *   `./nginx -c /usr/local/nginx/conf/nginx.conf`

@@ -735,11 +735,11 @@ Spring Cloud Gateway 的目标提供统一的路由方式且基于 Filter 链的
 3.  SpringCloud Gateway 与 Zuul 的区别
     
     1.  在 SpringCloud Finchley 正式版之前，Spring Cloud 推荐的网关是 Netflix 提供的 Zuul。
-    2.  Zuul 1.x，是一个基于阻塞 I/O 的 API Gateway。
-    3.  Zuul 1.x 基于 Servlet 2.5 使用阻塞架构它不支持任何长连接 (如 WebSocket)Zuul 的设计模式和 Nginx 较像，每次 I/О 操作都是从工作线程中选择一个执行，请求线程被阻塞到工作线程完成，但是差别是 Nginx 用 C++ 实现，Zuul 用 Java 实现，而 JVM 本身会有第 - 次加载较慢的情况，使得 Zuul 的性能相对较差。
-    4.  Zuul 2.x 理念更先进，想基于 Netty 非阻塞和支持长连接，但 SpringCloud 目前还没有整合。Zuul .x 的性能较 Zuul 1.x 有较大提升。在性能方面，根据官方提供的基准测试, Spring Cloud Gateway 的 RPS(每秒请求数) 是 Zuul 的 1.6 倍。
+    2.  Zuul 1.x，是一个基于**阻塞** I/O 的 API Gateway。
+    3.  Zuul 1.x 基于 **Servlet 2.5 使用阻塞架构**它不支持任何长连接 (如 WebSocket)Zuul 的设计模式和 Nginx 较像，每次 I/О 操作都是从工作线程中选择一个执行，请求线程被阻塞到工作线程完成，但是差别是 Nginx 用 C++ 实现，Zuul 用 Java 实现，而 JVM 本身会有第一 次加载较慢的情况，使得 Zuul 的性能相对较差。
+    4.  Zuul 2.x 理念更先进，想基于 **Netty 非阻塞和支持长连接**，但 SpringCloud 目前还没有整合。Zuul .x 的性能较 Zuul 1.x 有较大提升。在性能方面，根据官方提供的基准测试, Spring Cloud Gateway 的 RPS(每秒请求数) 是 Zuul 的 1.6 倍。
     5.  Spring Cloud Gateway 建立在 Spring Framework 5、Project Reactor 和 Spring Boot2 之上，使用非阻塞 API。
-    6.  Spring Cloud Gateway 还支持 WebSocket，并且与 Spring 紧密集成拥有更好的开发体验
+    6.  Spring Cloud Gateway 还支持 **WebSocket**，并且与 Spring 紧密集成拥有更好的开发体验
 
 **Zuul1.x 模型**
 
@@ -757,7 +757,7 @@ Servlet 的生命周期？servlet 由 servlet container 进行生命周期管理
 
 Servlet 是一个简单的网络 IO 模型，当请求进入 Servlet container 时，Servlet container 就会为其绑定一个线程，在**并发不高的场景下**这种模型是适用的。但是一旦高并发 (如抽风用 Jmeter 压)，线程数量就会上涨，而线程资源代价是昂贵的（上线文切换，内存消耗大）严重影响请求的处理时间。在一些简单业务场景下，不希望为每个 request 分配一个线程，只需要 1 个或几个线程就能应对极大并发的请求，这种业务场景下 servlet 模型没有优势。
 
-所以 Zuul 1.X 是基于 servlet 之上的一个阻塞式处理模型，即 Spring 实现了处理所有 request 请求的一个 servlet (DispatcherServlet) 并由该 servlet 阻塞式处理处理。所以 SpringCloud Zuul 无法摆脱 servlet 模型的弊端。
+所以 **Zuul 1.X 是基于 servlet 之上的一个阻塞式处理模型**，即 Spring 实现了处理所有 request 请求的一个 servlet (DispatcherServlet) 并由该 servlet 阻塞式处理处理。所以 SpringCloud Zuul 无法摆脱 servlet 模型的弊端。
 
 **Gateway 模型**
 
@@ -765,7 +765,7 @@ WebFlux 是什么？[官方文档](https://docs.spring.io/spring/docs/current/sp
 
 传统的 Web 框架，比如说: Struts2，SpringMVC 等都是基于 Servlet APl 与 Servlet 容器基础之上运行的。
 
-但是在 Servlet3.1 之后有了异步非阻塞的支持。而 **WebFlux 是一个典型非阻塞异步的框架**，它的核心是基于 Reactor 的相关 API 实现的。相对于传统的 web 框架来说，它可以运行在诸如 Netty，Undertow 及支持 Servlet3.1 的容器上。非阻塞式 + 函数式编程 (Spring 5 必须让你使用 Java 8)。
+但是在 Servlet3.1 之后有了**异步非阻塞**的支持。而 **WebFlux 是一个典型非阻塞异步的框架**，它的核心是基于 Reactor 的相关 API 实现的。相对于传统的 web 框架来说，它可以运行在诸如 Netty，Undertow 及支持 Servlet3.1 的容器上。**非阻塞式 + 函数式编程** (Spring 5 必须让你使用 Java 8)。
 
 Spring WebFlux 是 Spring 5.0 引入的新的响应式框架，区别于 Spring MVC，它不需要依赖 Servlet APl，它是完全异步非阻塞的，并且基于 Reactor 来实现响应式流规范。
 
@@ -800,9 +800,11 @@ Handler 再通过指定的过滤器链来将请求发送到我们实际的服务
 
 过滤器之间用虚线分开是因为过滤器可能会在发送代理请求之前 (“pre”) 或之后 (“post"）执行业务逻辑。
 
-Filter 在 “pre” 类型的过滤器可以做参数校验、权限校验、流量监控、日志输出、协议转换等，在 “post” 类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有着非常重要的作用。
+Filter 在 “pre” 类型的过滤器可以做参数校验、权限校验、流量监控、日志输出、协议转换等
 
-**核心逻辑**：路由转发 + 执行过滤器链。
+在 “post” 类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有着非常重要的作用。
+
+**核心逻辑**：**路由转发 + 执行过滤器链。**
 
 69_Gateway9527 搭建
 -----------------
@@ -1065,7 +1067,7 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true #开启从注册中心动态创建路由的功能，利用微服务名进行路由
+          enabled: true #开启从注册中心动态创建路由的功能，利用微服务名进行路由(可以不用使用routes 调用时使用服务名 + 路径进行转发)
       routes:
         - id: payment_routh #payment_route    #路由的ID，没有固定规则但要求唯一，建议配合服务名
           #uri: http://localhost:8001          #匹配后提供服务的路由地址
@@ -1097,6 +1099,17 @@ eureka:
 结果
 
 不停刷新页面，8001/8002 两个端口切换。
+
+**注意**
+
+如果不配置routes,可以使用服务名  加上方法路径进行服务调用
+
+```http
+如下:
+http://localhost:9527/EUREKA-CLOUD-PAYMENT-SERVICE/payment/lb
+```
+
+
 
 72_GateWay 常用的 Predicate
 ------------------------
@@ -1335,8 +1348,8 @@ public class MyLogGateWayFilter implements GlobalFilter,Ordered
 
 浏览器输入：
 
-*   http://localhost:9527/payment/lb - 反问异常
-*   http://localhost:9527/payment/lb?uname=abc - 正常反问
+*   http://localhost:9527/payment/lb - 访问异常
+*   http://localhost:9527/payment/lb?uname=abc - 正常访问
 
 74_Config 分布式配置中心介绍
 -------------------
@@ -1836,9 +1849,13 @@ Spring Cloud Bus 配合 Spring Cloud Config 使用可以实现配置的动态刷
 
 Spring Cloud Bus 是用来将分布式系统的节点与轻量级消息系统链接起来的框架，它整合了 Java 的事件处理机制和消息中间件的功能。Spring Clud Bus 目前支持 RabbitMQ 和 Kafka。
 
+刷新单个服务，全体广播
+
 **能干嘛**
 
 Spring Cloud Bus 能管理和传播分布式系统间的消息，就像一个分布式执行器，可用于广播状态更改、事件推送等，也可以当作微服务间的通信通道。
+
+刷新config服务端  
 
 ![](https://img-blog.csdnimg.cn/img_convert/26c6ced30935219d4717814a446eb67a.png)
 
@@ -2325,6 +2342,8 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
 
 **通过定义绑定器 Binder 作为中间层，实现了应用程序与消息中间件细节之间的隔离**。
 
+**从 Stream 发布消息就是输出，接受消息就是输入。**
+
 **Binder**：
 
 *   INPUT 对应于消费者
@@ -2354,12 +2373,12 @@ Topic 主题进行广播
     
 *   Channel - 通道，是队列 Queue 的一种抽象，在消息通讯系统中就是实现存储和转发的媒介，通过 Channel 对队列进行配置。
     
-*   Source 和 Sink - 简单的可理解为参照对象是 Spring Cloud Stream 自身，从 Stream 发布消息就是输出，接受消息就是输入。
+*   Source 和 Sink - 简单的可理解为参照对象是 Spring Cloud Stream 自身，**从 Stream 发布消息就是输出，接受消息就是输入。**
     
 
 **编码 API 和常用注解**
 
-<table><thead><tr><th>组成</th><th>说明</th></tr></thead><tbody><tr><td>Middleware</td><td>中间件<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>目前只支持 RabbitMQ 和 Kafka</td></tr><tr><td>Binder</td><td>Binder 是应用与消息中间件之间的封装<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>目前实行了 Kafka 和 RabbitMQ 的 Binder<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>通过 Binder 可以很方便的连接中间件<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>可以动态的改变消息类型 (对应于 Kafka 的 topic,RabbitMQ 的 exchange)<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>这些都可以通过配置文件来实现</td></tr><tr><td>@Input</td><td>注解标识输入通道<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>通过该输乎通道接收到的消息进入应用程序</td></tr><tr><td>@Output</td><td>注解标识输出通道<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>发布的消息将通过该通道离开应用程序</td></tr><tr><td>@StreamListener</td><td>监听队列<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>用于消费者的队列的消息接收</td></tr><tr><td>@EnableBinding</td><td>指信道 channel 和 exchange 绑定在一起</td></tr></tbody></table>
+<table><thead><tr><th>组成</th><th>说明</th></tr></thead><tbody><tr><td>Middleware</td><td>中间件<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>目前只支持 RabbitMQ 和 Kafka</td></tr><tr><td>Binder</td><td>Binder 是应用与消息中间件之间的封装<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>目前实行了 Kafka 和 RabbitMQ 的 Binder<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>通过 Binder 可以很方便的连接中间件<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>可以动态的改变消息类型 (对应于 Kafka 的 topic,RabbitMQ 的 exchange)<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>这些都可以通过配置文件来实现</td></tr><tr><td>@Input</td><td>注解标识输入通道<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>通过该输入通道接收到的消息进入应用程序</td></tr><tr><td>@Output</td><td>注解标识输出通道<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>发布的消息将通过该通道离开应用程序</td></tr><tr><td>@StreamListener</td><td>监听队列<h-char unicode="ff0c" class="biaodian cjk bd-end bd-cop bd-hangable"><h-inner>，</h-inner></h-char>用于消费者的队列的消息接收</td></tr><tr><td>@EnableBinding</td><td>指信道 channel 和 exchange 绑定在一起</td></tr></tbody></table>
 
 **案例说明**
 
