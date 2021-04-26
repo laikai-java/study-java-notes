@@ -1,0 +1,15 @@
+jyj:
+  access:
+    #######配置接口的路径信息，接口uri,每一段加注释#######
+    jyjloginfos:
+      - accessUrl: loginPlatForm
+        operatorType: 登录操作
+        contentType: 用户信息
+      - accessUrl: loginOutPlatForm
+        operatorType: 登出操作
+        contentType: 用户信息
+      ########service-control########################
+      #####服务######
+      - accessUrl: /service/check
+        operatorType: 服务审核
+        contentType: 审核信息
