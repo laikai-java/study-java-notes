@@ -548,3 +548,362 @@ Java的CAS会使用现代处理器上提供的高效机器级别的原子指令�
 AQS，非阻塞数据结构和原子变量类（java.util.concurrent.atomic包中的类），这些concurrent 包中的基础类都是使用这种模式来实现的，而concurrent包中的高层类又是依赖于这些基础类 来实现的。从整体来看，concurrent包的实现示意如图所示。
 
 ![](img/concurrent包的实现示意图.png)
+
+## 3.6 final域的内存语义
+
+与前面介绍的锁和volatile相比，对final域的读和写更像是普通的变量访问。
+
+### 3.6.1 final域的重排序规则
+
+对于final域，编译器和处理器要遵守两个重排序规则。
+
+- 在构造函数内对一个final域的写入，与随后把这个被构造对象的引用赋值给一个引用 变量，这两个操作之间不能重排序。
+- 初次读一个包含final域的对象的引用，与随后初次读这个final域，这两个操作之间不能 重排序。
+
+```java
+class FinalExample {
+
+    int i; // 普通变量
+    final int j; // final变量
+    static FinalExample obj;
+
+    public FinalExample() { // 构造函数
+        i = 1; // 写普通域
+        j = 2; // 写final域
+    }
+
+    public static void writer() { // 写线程A执行
+        obj = new FinalExample();
+    }
+
+    public static void reader() { // 读线程B执行
+        FinalExample object = obj; // 读对象引用
+        int a = object.i; // 读普通域
+        int b = object.j; // 读final域
+    }
+}
+```
+
+
+
+这里假设一个线程A执行writer()方法，随后另一个线程B执行reader()方法。下面我们通过 这两个线程的交互来说明这两个规则。
+
+### 3.6.2 写final域的重排序规则
+
+写final域的重排序规则禁止把final域的写 重排序到构造函数之外。
+
+这个规则的实现包含 下面2个方面。 
+
+1. JMM禁止编译器把final域的写重排序到构造函数之外。
+2. 编译器会在final域的写之后，构造函数return之前，插入一个StoreStore屏障。这个屏障 禁止处理器把final域的写重排序到构造函数之外。
+
+写final域的重排序规则可以确保：在对象引用为任意线程可见之前，对象的final域已经被正确初始化过了，而普通域不具有这个保障。
+
+![](img/final 线程执行时序图.png)
+
+### 3.6.3 读final域的重排序规则
+
+读final域的重排序规则是，在一个线程中，初次读对象引用与初次读该对象包含的final 域，JMM禁止处理器重排序这两个操作（注意，这个规则仅仅针对处理器）。编译器会在读final 域操作的前面插入一个LoadLoad屏障。
+
+![](img/线程执行时序图-读.png)
+
+读对象的普通域的操作被处理器重排序到读对象引用之前。读普通域时，该 域还没有被写线程A写入，这是一个错误的读取操作。而读final域的重排序规则会把读对象 final域的操作“限定”在读对象引用之后，此时该final域已经被A线程初始化过了，这是一个正 确的读取操作。
+
+ 读final域的重排序规则可以确保：在读一个对象的final域之前，一定会先读包含这个final 域的对象的引用。在这个示例程序中，如果该引用不为null，那么引用对象的final域一定已经 被A线程初始化过了。
+
+### 3.6.4 final域为引用类型
+
+```java
+
+class FinalReferenceExample {
+    final int[] intArray; // final是引用类型
+    static FinalReferenceExample obj;
+    public FinalReferenceExample () { // 构造函数
+        intArray = new int[1]; // 1
+        intArray[0] = 1; // 2
+    }
+    public static void writerOne () { // 写线程A执行
+        obj = new FinalReferenceExample (); // 3
+    }
+    public static void writerTwo () { // 写线程B执行
+        obj.intArray[0] = 2; // 4
+    }
+    public static void reader () { // 读线程C执行
+        if (obj != null) { // 5
+            int temp1 = obj.intArray[0]; // 6
+        }
+    }
+}
+```
+
+
+
+本例final域为一个引用类型，它引用一个int型的数组对象。
+
+对于引用类型，写final域的重 排序规则对编译器和处理器增加了如下约束：在构造函数内对一个final引用的对象的成员域 的写入，与随后在构造函数外把这个被构造对象的引用赋值给一个引用变量，这两个操作之 间不能重排序。
+
+1是对final域的写入，2是对这个final域引用的对象的成员域的写入，3是把被 构造的对象的引用赋值给某个引用变量。这里除了前面提到的1不能和3重排序外，2和3也不 能重排序。
+
+ JMM可以确保读线程C至少能看到写线程A在构造函数中对final引用对象的成员域的写 入。即C至少能看到数组下标0的值为1。而写线程B对数组元素的写入，读线程C可能看得到， 也可能看不到。JMM不保证线程B的写入对读线程C可见，因为写线程B和读线程C之间存在数 据竞争，此时的执行结果不可预知。 如果想要确保读线程C看到写线程B对数组元素的写入，写线程B和读线程C之间需要使 用同步原语（lock或volatile）来确保内存可见性。
+
+### 3.6.5 为什么final引用不能从构造函数内“溢出”
+
+```java
+class FinalReferenceEscapeExample {
+    final int i;
+    static FinalReferenceEscapeExample obj;
+    public FinalReferenceEscapeExample () {
+        i = 1; // 1写final域
+        obj = this; // 2 this引用在此"逸出"
+    }
+    public static void writer() {
+        new FinalReferenceEscapeExample ();
+    }
+    public static void reader() {
+        if (obj != null) { // 3
+            int temp = obj.i; // 4
+        }
+    }
+}
+```
+
+![](img/引用型final的执行时序图.png)
+
+假设一个线程A执行writer()方法，另一个线程B执行reader()方法。这里的操作2使得对象 还未完成构造前就为线程B可见。即使这里的操作2是构造函数的最后一步，且在程序中操作2 排在操作1后面，执行read()方法的线程仍然可能无法看到final域被初始化后的值，因为这里的 操作1和操作2之间可能被重排序。实际的执行时序可能如图所示。
+
+
+
+![](img/多线程执行时序图.png)
+
+在构造函数返回前，被构造对象的引用不能为其他线程所见，因为此时的final域可能还没有被初始化。在构造函数返回后，任意线程都将保证能看到final域正确初 始化之后的值。
+
+### 3.6.6 final语义在处理器中的实现
+
+现在我们以X86处理器为例，说明final语义在处理器中的具体实现。 
+
+上面我们提到，写final域的重排序规则会要求编译器在final域的写之后，构造函数return 之前插入一个StoreStore障屏。读final域的重排序规则要求编译器在读final域的操作前面插入 一个LoadLoad屏障。 
+
+由于X86处理器不会对写-写操作做重排序，所以在X86处理器中，写final域需要的 StoreStore障屏会被省略掉。同样，由于X86处理器不会对存在间接依赖关系的操作做重排序， 所以在X86处理器中，读final域需要的LoadLoad屏障也会被省略掉。也就是说，在X86处理器 中，final域的读/写不会插入任何内存屏障！
+
+### 3.6.7 JSR-133为什么要增强final的语义
+
+在旧的Java内存模型中，一个最严重的缺陷就是线程可能看到final域的值会改变。比如， 一个线程当前看到一个整型final域的值为0（还未初始化之前的默认值），过一段时间之后这个 线程再去读这个final域的值时，却发现值变为1（被某个线程初始化之后的值）。最常见的例子 就是在旧的Java内存模型中，String的值可能会改变。
+
+ 为了修补这个漏洞，JSR-133专家组增强了final的语义。通过为final域增加写和读重排序 规则，可以为Java程序员提供初始化安全保证：只要对象是正确构造的（被构造对象的引用在 构造函数中没有“逸出”），那么不需要使用同步（指lock和volatile的使用）就可以保证任意线程都能看到这个final域在构造函数中被初始化之后的值。
+
+## 3.7 happens-before
+
+### 3.7.1 JMM的设计
+
+首先，让我们来看JMM的设计意图。从JMM设计者的角度，在设计JMM时，需要考虑两个关键因素。
+
+- 程序员对内存模型的使用。程序员希望内存模型易于理解、易于编程。程序员希望基于 一个强内存模型来编写代码。 
+- 编译器和处理器对内存模型的实现。编译器和处理器希望内存模型对它们的束缚越少越 好，这样它们就可以做尽可能多的优化来提高性能。编译器和处理器希望实现一个弱内存模 型。
+
+一方面，要为程序员提供足够强的内存可见性保证；另一方面，对编译器和处理 器的限制要尽可能地放松。下面让我们来看JSR-133是如何实现这一目标的。
+
+```java
+double pi = 3.14; // A
+double r = 1.0; // B
+double area = pi * r * r; // C
+```
+
+上面计算圆的面积的示例代码存在3个happens-before关系，如下。
+
+- A happens-before B。
+- B happens-before C。
+- A happens-before C。
+
+在3个happens-before关系中，2和3是必需的，但1是不必要的。因此，JMM把happens-before 要求禁止的重排序分为了下面两类。
+
+- 会改变程序执行结果的重排序。
+- 不会改变程序执行结果的重排序。
+
+JMM对这两种不同性质的重排序，采取了不同的策略，如下。
+
+- 对于会改变程序执行结果的重排序，JMM要求编译器和处理器必须禁止这种重排序。 
+- 对于不会改变程序执行结果的重排序，JMM对编译器和处理器不做要求（JMM允许这种 重排序）。
+
+![](img/JMM的设计示意图.png)
+
+JMM其实是在遵 循一个基本原则：只要不改变程序的执行结果（指的是单线程程序和正确同步的多线程程序）， 编译器和处理器怎么优化都行。
+
+### 3.7.2 happens-before的定义
+
+JSR-133使用happens-before的概念来指定两个操作之间的执行顺序。
+
+由于这两个操作可以在一个线程之内，也可以是在不同线程之间。因此，JMM可以通过happens-before关系向程序 员提供跨线程的内存可见性保证（如果A线程的写操作a与B线程的读操作b之间存在happensbefore关系，尽管a操作和b操作在不同的线程中执行，但JMM向程序员保证a操作将对b操作可 见）。
+
+
+
+如果一个操作happens-before另一个操作，那么第一个操作的执行结果将对第二个操作 可见，而且第一个操作的执行顺序排在第二个操作之前。 
+
+两个操作之间存在happens-before关系，并不意味着Java平台的具体实现必须要按照 happens-before关系指定的顺序来执行。如果重排序之后的执行结果，与按happens-before关系 来执行的结果一致，那么这种重排序并不非法（也就是说，JMM允许这种重排序）。
+
+### 3.7.3 happens-before规则
+
+- 程序顺序规则：一个线程中的每个操作，happens-before于该线程中的任意后续操作。 
+- 监视器锁规则：对一个锁的解锁，happens-before于随后对这个锁的加锁。
+- volatile变量规则：对一个volatile域的写，happens-before于任意后续对这个volatile域的读。
+- 传递性：如果A happens-before B，且B happens-before C，那么A happens-before C。
+- start()规则：如果线程A执行操作ThreadB.start()（启动线程B），那么A线程的 ThreadB.start()操作happens-before于线程B中的任意操作。
+- join()规则：如果线程A执行操作ThreadB.join()并成功返回，那么线程B中的任意操作 happens-before于线程A从ThreadB.join()操作成功返回。
+
+
+
+![](img/happens-before关系的示意图.png)
+
+- 1 happens-before 2和3 happens-before 4由程序顺序规则产生。由于编译器和处理器都要 遵守as-if-serial语义，也就是说，as-if-serial语义保证了程序顺序规则。因此，可以把程序顺序 规则看成是对as-if-serial语义的“封装”。
+- 2 happens-before 3是由volatile规则产生。前面提到过，对一个volatile变量的读，总是能看 到（任意线程）之前对这个volatile变量最后的写入。因此，volatile的这个特性可以保证实现 volatile规则。 
+- 1 happens-before 4是由传递性规则产生的。这里的传递性是由volatile的内存屏障插入策 略和volatile的编译器重排序规则共同来保证的。
+
+![](img/Thead.start建立的happens-before关系图。.png)
+
+1 happens-before 2由程序顺序规则产生。2 happens-before 4由start()规则产 生。根据传递性，将有1 happens-before 4。这实意味着，线程A在执行ThreadB.start()之前对共享 变量所做的修改，接下来在线程B开始执行后都将确保对线程B可见。
+
+![](img/join的happens-before关系图.png)
+
+2 happens-before 4由join()规则产生；4 happens-before 5由程序顺序规则产生。 根据传递性规则，将有2 happens-before 5。这意味着，线程A执行操作ThreadB.join()并成功返 回后，线程B中的任意操作都将对线程A可见。
+
+## 3.8 双重检查锁定与延迟初始化
+
+在Java多线程程序中，有时候需要采用延迟初始化来降低初始化类和创建对象的开销。双 重检查锁定是常见的延迟初始化技术，但它是一个错误的用法。本文将分析双重检查锁定的 错误根源，以及两种线程安全的延迟初始化方案。
+
+### 3.8.1 双重检查锁定的由来
+
+```java
+public class UnsafeLazyInitialization {
+    private static Instance instance;
+    public static Instance getInstance() {
+        if (instance == null) // 1：A线程执行
+            instance = new Instance(); // 2：B线程执行
+        return instance;
+    }
+}
+
+```
+
+在UnsafeLazyInitialization类中，假设A线程执行代码1的同时，B线程执行代码2。此时，线 程A可能会看到instance引用的对象还没有完成初始化
+
+对于UnsafeLazyInitialization类，我们可以对getInstance()方法做同步处理来实现线程安全 的延迟初始化。示例代码如下。
+
+```java
+public class SafeLazyInitialization {
+    private static Instance instance;
+    public synchronized static Instance getInstance() {
+        if (instance == null)
+            instance = new Instance();
+        return instance;
+    }
+}
+```
+
+由于对getInstance()方法做了同步处理，synchronized将导致性能开销。如果getInstance()方 法被多个线程频繁的调用，将会导致程序执行性能的下降。反之，如果getInstance()方法不会被 多个线程频繁的调用，那么这个延迟初始化方案将能提供令人满意的性能。
+
+
+
+双重检查 锁定来降低同步的开销。下面是使用双重检查锁定来实现延迟初始化的示例代码
+
+```java
+
+public class DoubleCheckedLocking {                     // 1
+    private static Instance instance;                   // 2
+    public static Instance getInstance() {              // 3
+        if (instance == null) {                         //4:第一次检查
+            synchronized (DoubleCheckedLocking.class) { // 5:加锁
+                if (instance == null)                   // 6:第二次检查
+                    instance = new Instance();          // 7:问题的根源出在这里
+            }                                           // 8
+        }                                               // 9
+        return instance;                                // 10
+    }                                                   // 11
+}
+```
+
+在线程执行到第4行，代码读 取到instance不为null时，instance引用的对象有可能还没有完成初始化!!!
+
+### 3.8.2 问题的根源
+
+前面的双重检查锁定示例代码的第7行（instance=new Singleton();）创建了一个对象。这一 行代码可以分解为如下的3行伪代码。
+
+```java
+memory = allocate(); // 1：分配对象的内存空间
+ctorInstance(memory); // 2：初始化对象
+instance = memory; // 3：设置instance指向刚分配的内存地址
+```
+
+上面3行伪代码中的2和3之间，可能会被重排序（在一些JIT编译器上，这种重排序是真实 发生的，详情见参考文献1的“Out-of-order writes”部分）。2和3之间重排序之后的执行时序如 下。
+
+```java
+memory = allocate(); // 1：分配对象的内存空间
+instance = memory; // 3：设置instance指向刚分配的内存地址
+					// 注意，此时对象还没有被初始化！
+ctorInstance(memory); // 2：初始化对象
+```
+
+![](img/双重检查线程执行时序图.png)
+
+![](img/双重检查多线程执行时序图.png)
+
+DoubleCheckedLocking示例代码的第7行（instance=new Singleton();）如果 发生重排序，另一个并发执行的线程B就有可能在第4行判断instance不为null。线程B接下来将 访问instance所引用的对象，但此时这个对象可能还没有被A线程初始化！
+
+### 3.8.3 基于volatile的解决方案
+
+对于前面的基于双重检查锁定来实现延迟初始化的方案（指DoubleCheckedLocking示例代 码），只需要做一点小的修改（把instance声明为volatile型），就可以实现线程安全的延迟初始 化。请看下面的示例代码。
+
+```java
+public class SafeDoubleCheckedLocking {
+    private volatile static Instance instance;
+    public static Instance getInstance() {
+        if (instance == null) {
+            synchronized (SafeDoubleCheckedLocking.class) {
+                if (instance == null)
+                    instance = new Instance(); // instance为volatile，现在没问题了
+            }
+        }
+        return instance;
+    }
+}
+
+```
+
+### 3.8.4 基于类初始化的解决方案
+
+JVM在类的初始化阶段（即在Class被加载后，且被线程使用之前），会执行类的初始化。在 执行类的初始化期间，JVM会去获取一个锁。这个锁可以同步多个线程对同一个类的初始化。
+
+ 基于这个特性，可以实现另一种线程安全的延迟初始化方案（这个方案被称之为 Initialization On Demand Holder idiom）。
+
+```java
+public class InstanceFactory {
+    private static class InstanceHolder {
+        public static Instance instance = new Instance();
+    }
+    public static Instance getInstance() {
+        return InstanceHolder.instance ; // 这里将导致InstanceHolder类被初始化
+    }
+}
+
+```
+
+![](img/双重检查多线程执行时序图-使用类初始化.png)
+
+这个方案的实质是：允许3.8.2节中的3行伪代码中的2和3重排序，但不允许非构造线程（这 里指线程B）“看到”这个重排序
+
+初始化一个类，包括执行这个类的静态初始化和初始化在这个类中声明的静态字段。根 据Java语言规范，在首次发生下列任意一种情况时，一个类或接口类型 T 将被立即初始化。
+
+1）T是一个类，而且一个T类型的实例被创建。
+
+2）T是一个类，且T中声明的一个静态方法被调用。 
+
+3）T中声明的一个静态字段被赋值。 
+
+4）T中声明的一个静态字段被使用，而且这个字段不是一个常量字段。 
+
+5）T是一个顶级类（Top Level Class，见Java语言规范的§7.6），而且一个断言语句嵌套在T 内部被执行。
+
+
+
+
+
+# 第四章 Java并发编程基础
+
