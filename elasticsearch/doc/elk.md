@@ -30,7 +30,7 @@ Elasticsearch支持集群架构，典型的集群架构如下图所示：
 
 ## logstash
 
-Logstash是一款轻量级的、开源的日志收集处理框架，它可以方便的把分散的、多样化的日志搜集起来，并进行自定义过滤分析处理，然后传输到指定的位置，比如某个服务器或者文件。Logstash采用JRuby语言编写，目前最新的版本是Logstash 6.3.2，它的主要特点如下：
+Logstash是一款轻量级的、开源的日志收集处理框架，它可以方便的把分散的、多样化的日志搜集起来，并进行自定义过滤分析处理，然后传输到指定的位置，比如某个服务器或者文件。Logstash采用JRuby语言编写，它的主要特点如下：
 
  Logstash的理念很简单，从功能上来讲，它只做三件事情：
 
@@ -63,4 +63,41 @@ Kibana是一个开源的数据分析可视化平台。使用Kibana可以为Logst
 有些时候，如果收集的日志量较大，为了保证日志收集的性能和数据的完整性，logstash shipper和logstash indexer之间的缓冲器（Broker）也经常采用kafka来实现。
 
  在这个图中，要重点掌握的是ELK架构的数据流向，以及logstash、Elasticsearch和Kibana组合实现的功能细节。
+
+# filebeat
+
+## 使用
+
+```shell
+sudo ./filebeat -e -c filebeat.yml -d "publish"
+```
+
+问题1
+
+```sh
+Exiting: error loading config file: config file ("{beatname}.yml") must be
+owned by the beat user (uid=501) or root
+
+解决
+chown root {beatname}.yml or chown 501 {beatname}.yml 
+```
+
+# logstash
+
+## 启动
+
+### 简单实用
+
+```shell
+使用控制台输入输出
+bin/logstash -e 'input { stdin { } } output { stdout {} }'
+
+
+
+```
+
+```
+logstash -f ../config/logstash-my.conf --config.reload.automatic
+```
+
 
