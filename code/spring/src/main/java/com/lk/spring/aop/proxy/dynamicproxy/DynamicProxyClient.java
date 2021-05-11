@@ -3,6 +3,7 @@ package com.lk.spring.aop.proxy.dynamicproxy;
 
 import com.lk.spring.aop.proxy.staticproxy.BuyHouse;
 import com.lk.spring.aop.proxy.staticproxy.BuyHouseImpl;
+
 import java.lang.reflect.Proxy;
 
 /**
@@ -12,14 +13,19 @@ import java.lang.reflect.Proxy;
  */
 public class DynamicProxyClient {
 
-  public static void main(String[] args) {
+    public static void main(String[] args) {
 
-    BuyHouse buyHouse = new BuyHouseImpl();
+        BuyHouse buyHouse = new BuyHouseImpl();
 
-    BuyHouse proxyBuyHouse = (BuyHouse) Proxy.newProxyInstance(BuyHouse.class.getClassLoader(), new
-                  Class[]{BuyHouse.class}, new DynamicProxyHandler(buyHouse));
-       proxyBuyHouse.buyHosue();
+        BuyHouse proxyBuyHouse = (BuyHouse) Proxy.newProxyInstance(BuyHouse.class.getClassLoader(), new
+                Class[]{BuyHouse.class}, new DynamicProxyHandler(buyHouse));
+        proxyBuyHouse.buyHosue();
 
-  }
+        CglibProxy cglibProxy = new CglibProxy();
+        BuyHouseImpl proxy = (BuyHouseImpl) cglibProxy.getProxy(BuyHouseImpl.class);
+        proxy.buyHosue();
+
+
+    }
 
 }

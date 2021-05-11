@@ -12,6 +12,7 @@
         <module>common</module>
       <module>redis</module>
       <module>spring</module>
+        <module>generator</module>
     </modules>
     <parent>
     <groupId>org.springframework.boot</groupId>
