@@ -5,6 +5,10 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
 import com.lk.generator.entity.User;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
 @Service
 public class UserService{
 
@@ -16,9 +20,11 @@ public class UserService{
         return userDao.deleteByPrimaryKey(id);
     }
 
-    
-    public int insert(User record) {
-        return userDao.insert(record);
+
+    @Transactional(rollbackFor = Exception.class)
+    public void insert(User record) {
+        int insert = userDao.insert(record);
+        throw new RuntimeException("sss");
     }
 
     
@@ -29,6 +35,10 @@ public class UserService{
     
     public User selectByPrimaryKey(Integer id) {
         return userDao.selectByPrimaryKey(id);
+    }
+
+    public List<User> selectAll() {
+        return userDao.selectAll();
     }
 
     
