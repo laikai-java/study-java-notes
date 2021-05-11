@@ -35,6 +35,10 @@ Spring 可以做很多事情，它为企业级开发提供给了丰富的功能�
 
 IoC 让相互协作的组件保持松散的耦合，而 AOP 编程允许你把遍布于应用各层的功能分离出来形成可重用的功能组件。
 
+
+
+
+
 ### Spring 的优缺点是什么？
 
 优点
@@ -449,7 +453,23 @@ Spring 将值和 bean 的引用注入到 bean 对应的属性中；
 
 现在你已经了解了如何创建和加载一个 Spring 容器。但是一个空的容器并没有太大的价值，在你把东西放进去之前，它里面什么都没有。为了从 Spring 的 DI(依赖注入) 中受益，我们必须将应用对象装配进 Spring 容器中。
 
+### Spring在创建Bean的过程中分为三步
+
+实例化，对应方法：AbstractAutowireCapableBeanFactory中的createBeanInstance方法
+
+属性注入，对应方法：AbstractAutowireCapableBeanFactory的populateBean方法
+
+初始化，对应方法：AbstractAutowireCapableBeanFactory的initializeBean
+
+实例化，简单理解就是new了一个对象
+
+属性注入，为实例化中new出来的对象填充属性
+
+初始化，执行aware接口中的方法，初始化方法，完成AOP代理
+
 ### 哪些是重要的 bean 生命周期方法？ 你能重载它们吗？
+
+
 
 有两个重要的 bean 生命周期方法，第一个是 setup， 它是在容器加载 bean 的时候被调用。第二个方法是 teardown 它是在容器卸载类的时候被调用。
 
