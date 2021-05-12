@@ -1,6 +1,6 @@
-package com.lk.spring.transaction.service;
+package com.lk.spring.business.service;
 
-import com.lk.generator.mapper.UserDao;
+import com.lk.spring.business.mapper.UserDao;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 

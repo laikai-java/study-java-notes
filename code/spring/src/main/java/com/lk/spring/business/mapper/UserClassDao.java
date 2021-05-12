@@ -1,4 +1,4 @@
-package com.lk.generator.mapper;
+package com.lk.spring.business.mapper;
 
 import com.lk.generator.entity.UserClass;
 

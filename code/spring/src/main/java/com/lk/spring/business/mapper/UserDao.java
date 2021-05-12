@@ -1,6 +1,7 @@
-package com.lk.generator.mapper;
+package com.lk.spring.business.mapper;
 
 import com.lk.generator.entity.User;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -18,4 +19,10 @@ public interface UserDao {
     int updateByPrimaryKey(User record);
 
     List<User> selectAll();
+
+    User selectByName(String name);
+
+    List<User> selectOneWithDollars(String name);
+
+    List<User> selectByNameAndAge(@Param("name") String name,@Param("age") Integer age);
 }
