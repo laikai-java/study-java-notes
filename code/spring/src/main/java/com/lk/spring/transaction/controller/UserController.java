@@ -16,6 +16,7 @@ public class UserController {
     UserService userService;
 
     @GetMapping("/get/{id}")
+    @ResponseBody
     public User get(@PathVariable("id") Integer id) {
         return userService.selectByPrimaryKey(id);
     }
