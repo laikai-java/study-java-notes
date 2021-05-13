@@ -20,9 +20,11 @@ public interface UserDao {
 
     List<User> selectAll();
 
-    User selectByName(String name);
+    List<User> selectByName(String name);
 
     List<User> selectOneWithDollars(String name);
 
     List<User> selectByNameAndAge(@Param("name") String name,@Param("age") Integer age);
+
+    int insertBatch(List<User> users);
 }
