@@ -13,6 +13,7 @@
       <module>redis</module>
       <module>spring</module>
         <module>generator</module>
+        <module>collection</module>
     </modules>
     <parent>
     <groupId>org.springframework.boot</groupId>
