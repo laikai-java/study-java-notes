@@ -10,6 +10,8 @@
   <sql id="Base_Column_List">
     id, `name`, sex, age
   </sql>
+
+
   <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
     select 
     <include refid="Base_Column_List" />
@@ -107,4 +109,6 @@
         and
         age = #{age,jdbcType=INTEGER}
   </select>
+  
+
 </mapper>
