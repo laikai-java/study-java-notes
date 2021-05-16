@@ -11,10 +11,20 @@ import java.util.List;
  */
 public class ListClient {
     public static void main(String[] args) {
-        testIterator();
+        testGrow();
 
     }
 
+    public static void testGrow(){
+        /**
+         * 当初始化大小为奇数时 扩容时大约为1.5倍
+         */
+        ArrayList<Integer> list = new ArrayList<>(11);
+        for (int i = 0; i < 20; i++) {
+            list.add(i);
+        }
+
+    }
 
     public static ArrayList<String> getArrayList(){
         ArrayList<String> list = new ArrayList<>();
@@ -31,6 +41,7 @@ public class ListClient {
         }
         return list;
     }
+
 
     public static void testIterator(){
 

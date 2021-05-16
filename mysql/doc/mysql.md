@@ -39,6 +39,371 @@
 
 ![](..\img\sql执行顺序.png)
 
+
+
+# 事务隔离级别
+
+每次谈到数据库的事务隔离级别，大家一定会看到这张表。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNiaEy9vZM1w4q973kSr0GTPYasiccVXHXYpmp2dscasEtUBMIgTKQH0pg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+其中，可重复读这个隔离级别，有效地防止了脏读和不可重复读，但仍然可能发生幻读，可能发生幻读就表示可重复读这个隔离级别防不住幻读吗?
+
+
+
+我不管从数据库方面的教科书还是一些网络教程上,经常看到RR级别是可以重复读的，但是无法解决幻读，只有可串行化(Serializable)才能解决幻读，这个说法是否正确呢?
+
+
+
+在这篇文章中,我将重点围绕MySQL中**可重复读（Repeatable read）能防住幻读吗?**这一问题展开讨论，相信看完这篇文章后你一定会对事务隔离级别有新的认识。
+
+
+
+我们的数据库中有如下结构和数据的Users表，下文中我们将对这张表进行操作
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNWs6n8x0niakGVD7NibIUibp9YeLDibibWjjG5qOmlGPO9TWicJ72Mp8H7FGw/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+长文预警，读完此篇文章，大概需要您二十至三十分钟。
+
+
+
+## **什么是幻读?**
+
+
+
+在说幻读之前，我们要先来了解脏读和不可重复读。
+
+
+
+### 脏读
+
+当一个事务读取到另外一个事务修改但未提交的数据时，就可能发生脏读。
+
+
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNYvNeSzzntHpt8gX6D4M0Ge5vjXpWewfv79ehAJlPsLTPEJlibEXlohg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+
+
+在我们的例子中，事务2修改了一行，但是没有提交，事务1读了这个没有提交的数据。
+
+
+
+现在如果事务2回滚了刚才的修改或者做了另外的修改的话，事务1中查到的数据就是不正确的了，所以这条数据就是脏读。
+
+
+
+### 不可重复读
+
+“不可重复读”现象发生在当执行SELECT 操作时没有获得读锁或者SELECT操作执行完后马上释放了读锁；另外一个事务对数据进行了更新，读到了不同的结果。
+
+
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNdH2eebuQsG7crRPfZx5IHmPgrZqxemI8XGYHhdqMwFiaR8p56U3HoQg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+在这个例子中，事务2提交成功，因此他对id为1的行的修改就对其他事务可见了。导致了事务1在此前读的age=1，第二次读的age=2，两次结果不一致,这就是不可重复读。
+
+
+
+### 幻读
+
+“幻读”又叫"幻象读",是''不可重复读''的一种特殊场景：当事务1两次执行''SELECT ... WHERE''检索一定范围内数据的操作中间，事务2在这个表中创建了(如[[INSERT]])了一行新数据，这条新数据正好满足事务1的“WHERE”子句。
+
+
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNsuALPxCcMlXdG1m8ZMSmw4Aa39SM0ct3FggicGvnyibibW03ZvG1Gppgg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+如图事务1执行了两遍同样的查询语句，第二遍比第一遍多出了一条数据，这就是幻读。
+
+
+
+### 三者到底什么区别
+
+
+
+三者的场景介绍完,但是一定仍然有很多同学搞不清楚,它们到底有什么区别，我总结一下。
+
+**脏读**：指读到了其他事务未提交的数据。
+
+**不可重复读**：读到了其他事务已提交的数据(update)。
+
+不可重复读与幻读都是读到其他事务已提交的数据,但是它们针对点不同。
+
+不可重复读：update。
+
+幻读：delete，insert。
+
+
+
+## **MySQL中的四种事务隔离级别**
+
+### 未提交读
+
+未提交读（READ UNCOMMITTED）是最低的隔离级别，在这种隔离级别下，如果一个事务已经开始写数据，则**另外一个事务则不允许同时进行写操作**，**但允许其他事务读此行数据。**
+
+
+
+把脏读的图拿来分析分析，因为事务2更新id=1的数据后，仍然允许事务1读取该条数据,所以事务1第二次执行查询，读到了事务2更新的结果，产生了脏读。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNYvNeSzzntHpt8gX6D4M0Ge5vjXpWewfv79ehAJlPsLTPEJlibEXlohg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+### 已提交读
+
+由于MySQL的InnoDB默认是使用的RR级别，所以我们先要将该session开启成RC级别，并且设置binlog的模式
+
+```
+
+SET session transaction isolation level read committed;
+SET SESSION binlog_format = 'ROW';（或者是MIXED）
+```
+
+在已提交读（READ COMMITTED）级别中，读取数据的事务**允许其他事务继续访问该行数据，但是未提交的写事务将会禁止其他事务访问该行，会对该写锁一直保持直到到事务提交。**
+
+
+
+同样，我们来分析脏读，事务2更新id=1的数据后，在提交前，会对该对象写锁，所以事务1读取id=1的数据时，会一直等待事务2结束，处于阻塞状态，避免了产生脏读。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNYvNeSzzntHpt8gX6D4M0Ge5vjXpWewfv79ehAJlPsLTPEJlibEXlohg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+同样，来分析不可重复读，事务1读取id=1的数据后并没有锁住该数据，所以事务2能对这条数据进行更新，事务2对更新并提交后，该数据立即生效，所以事务1再次执行同样的查询，查询到的结果便与第一次查到的不同，所以已提交读防不了不可重复读。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNdH2eebuQsG7crRPfZx5IHmPgrZqxemI8XGYHhdqMwFiaR8p56U3HoQg/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+### 可重复读
+
+在可重复读（REPEATABLE READS）是介于已提交读和可串行化之间的一种隔离级别(废话😅)，它是InnoDb的默认隔离级别，它是我这篇文章的重点讨论对象，所以在这里我先卖个关子,后面我会详细介绍。
+
+### 可串行化
+
+可串行化（Serializable ）是高的隔离级别，它求在选定对象上的读锁和写锁保持直到事务结束后才能释放，所以能防住上诉所有问题，但因为是串行化的，所以效率较低。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_jpg/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNG0hIB3lBYSqicp9Q4ELicIvpKgI4B5x0pyAeB5ibreOzc7G6ReFtGNibyw/640?wx_fmt=jpeg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+了解到了上诉的一些背景知识后，下面正式开始我们的议题。
+
+
+
+**可重复读（Repeatable read）能防住幻读吗?**
+
+## **可重复读**
+
+在讲可重复读之前，我们先在mysql的InnoDB下做下面的实验。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNuicrDMlLQjWnsy3vZ7YhYZpyte4hxbVGxibuQTNlupZZQyEPlJyZm8Uw/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+可以看到，事务A既没有读到事务B更新的数据，也没有读到事务C添加的数据，所以在这个场景下，它既防住了不可重复读，也防住了幻读。
+
+
+
+到此为止，相信大家已经知道答案了，这是怎么做到的呢?
+
+
+
+### 悲观锁与乐观锁
+
+
+
+我们前面说的在对象上加锁，是一种悲观锁机制。
+
+
+
+有很多文章说可重复读的隔离级别防不了幻读，是认为可重复读会对读的行加锁，导致他事务修改不了这条数据，直到事务结束。
+
+
+
+但是这种方案只能锁住数据行，如果有新的数据进来，是阻止不了的，所以会产生幻读。
+
+
+
+可是MySQL、ORACLE、PostgreSQL等已经是非常成熟的数据库了，怎么会单纯地采用这种如此影响性能的方案呢?
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuN4cEF4qBfwMCd8tA7Was1o9cCfoMGMOBVTOJbVvvFKtMiasDqj8CsCoQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+
+
+我来介绍一下悲观锁和乐观锁。
+
+
+
+#### **悲观锁**
+
+正如其名，它指的是对数据被外界（包括本系统当前的其他事务，以及来自外部系统的事务处理）修改持保守态度，因此，在整个数据处理过程中，将数据处于锁定状态。
+
+
+
+读取数据时给加锁，其它事务无法修改这些数据。修改删除数据时也要加锁，其它事务无法读取这些数据。
+
+
+
+#### **乐观锁**
+
+相对悲观锁而言，乐观锁机制采取了更加宽松的加锁机制。悲观锁大多数情况下依靠数据库的锁机制实现，以保证操作最大程度的独占性。
+
+
+
+但随之而来的就是数据库性能的大量开销，特别是对长事务而言，这样的开销往往无法承受。
+
+
+
+而乐观锁机制在一定程度上解决了这个问题。乐观锁，大多是基于数据版本（ Version ）记录机制实现。
+
+
+
+何谓数据版本？即为数据增加一个版本标识，在基于数据库表的版本解决方案中，一般是通过为数据库表增加一个 “version” 字段来实现。读取出数据时，将此版本号一同读出，之后更新时，对此版本号加一。
+
+
+
+此时，将提交数据的版本数据与数据库表对应记录的当前版本信息进行比对，如果提交的数据版本号大于数据库表当前版本号，则予以更新，否则认为是过期数据。
+
+
+
+MySQL、ORACLE、PostgreSQL等都是使用了以乐观锁为理论基础的MVCC（多版本并发控制）来避免不可重复读和幻读,MVCC的实现没有固定的规范，每个数据库都会有不同的实现方式，这里讨论的是InnoDB的MVCC。
+
+
+
+### MVCC(多版本并发控制)
+
+在InnoDB中，会在每行数据后添加两个额外的隐藏的值来实现MVCC，这两个值一个记录这行数据何时被创建，另外一个记录这行数据何时过期（或者被删除）。
+
+
+
+在实际操作中，存储的并不是时间，而是事务的版本号，每开启一个新事务，事务的版本号就会递增。在可重读Repeatable reads事务隔离级别下：
+
+- SELECT时，读取创建版本号<=当前事务版本号，删除版本号为空或>当前事务版本号。
+- INSERT时，保存当前事务版本号为行的创建版本号
+- DELETE时，保存当前事务版本号为行的删除版本号
+- UPDATE时，插入一条新纪录，保存当前事务版本号为行创建版本号，同时保存当前事务版本号到原来删除的行
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNET6qoRhoywxmDsicibEicd3pyAwhH1VkJiaomib7Suib9hLOyibiaz7AXrc9Sw/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+通过MVCC，虽然每行记录都要额外的存储空间来记录version，需要更多的行检查工作以及一些额外的维护工作，但可以减少锁的使用，大多读操作都不用加锁，读取数据操作简单，性能好。
+
+
+
+细心的同学应该也看到了，通过MVCC读取出来的数据其实是历史数据，而不是最新数据。
+
+
+
+这在一些对于数据时效特别敏感的业务中，很可能出问题，这也是MVCC的短板之处，有办法解决吗？当然有。
+
+
+
+MCVV这种读取历史数据的方式称为快照读(snapshot read)，而读取数据库当前版本数据的方式，叫当前读(current read)。
+
+
+
+#### **快照读**
+
+我们平时只用使用select就是快照读，这样可以减少加锁所带来的开销。
+
+```
+select * from table ....
+```
+
+#### **当前读**
+
+
+
+对于会对数据修改的操作(update、insert、delete)都是采用当前读的模式。在执行这几个操作时会读取最新的记录，即使是别的事务提交的数据也可以查询到。
+
+
+
+假设要update一条记录，但是在另一个事务中已经delete掉这条数据并且commit了，如果update就会产生冲突，所以在update的时候需要知道最新的数据。读取的是最新的数据，需要加锁。
+
+
+
+以下第一个语句需要加共享锁，其它都需要加排它锁。
+
+```
+elect * from table where ? lock in share mode; 
+select * from table where ? for update; 
+insert; 
+update; 
+delete;
+```
+
+我们再利用当前读来做试验。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNriak72vaichtiatDfGbmH7ichEAmN3I59RSF5u4zXmWgpk1vUQHxicXJHSQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+可以看到在读提交的隔离级别中，事务1修改了所有class_id=1的数据，当时当事务2 insert后，事务A莫名奇妙地多了一行class_id=1的数据，而且没有被之前的update所修改，产生了读提交下的的幻读。
+
+
+
+而在可重复度的隔离级别下，情况就完全不同了。
+
+
+
+事务1在update后，对该数据加锁，事务B无法插入新的数据，这样事务A在update前后数据保持一致，避免了幻读，可以明确的是，update锁的肯定不只是已查询到的几条数据，因为这样无法阻止insert，有同学会说，那就是锁住了整张表呗。
+
+
+
+还是那句话，Mysql已经是个成熟的数据库了，怎么会采用如此低效的方法呢？其实这里的锁，是通过next-key锁实现的。
+
+
+
+#### Next-Key锁
+
+在Users这张表里面，class_id是个非聚簇索引，数据库会通过B+树维护一个非聚簇索引与主键的关系，简单来说，我们先通过class_id=1找到这个索引所对应所有节点，这些节点存储着对应数据的主键信息，即id=1，我们再通过主键id=1找到我们要的数据，这个过程称为回表。
+
+> 前往学习: 
+>
+> https://www.cnblogs.com/sujing/p/11110292.html
+
+我本想用我们文章中的例子来画一个B+树，可是画得太丑了，为了避免拉低此偏文章B格。所以我想引用上面那边文章中作者画的B+树来解释Next-key。
+
+
+
+假设我们上面用到的User表需要对Name建立非聚簇索引，是怎么实现的呢？我们看下图：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNVY8BPpuEPvkuBAI7tXy4VrXZfklCqKTlibicBFWEB9icZ4aicYbQFwHLAQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+
+
+B+树的特点是所有数据都存储在叶子节点上，以非聚簇索引的秦寿生为例，在秦寿生的右叶子节点存储着所有秦寿生对应的Id，即图中的34。
+
+
+
+在我们对这条数据做了当前读后，就会对这条数据加行锁，对于行锁很好理解，能够防止其他事务对其进行update或delete，但为什么要加GAP锁呢?
+
+
+
+还是那句话，B+树的所有数据存储在叶子节点上，当有一个新的叫秦寿生的数据进来，一定是排在在这条id=34的数据前面或者后面的，我们如果对前后这个范围进行加锁了，那当然新的秦寿生就插不进来了。
+
+
+
+那如果有一个新的范统要插进行呢？因为范统的前后并没有被锁住，是能成功插入的，这样就极大地提高了数据库的并发能力。
+
+
+
+### **马失前蹄**
+
+上文中说了可重复读能防不可重复读，还能防幻读，它能防住所有的幻读吗？当然不是，也有马失前蹄的时候。
+
+
+
+比如如下的例子:
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/WlIksv5EUJmEthGaRbeTkaxfLAyjRibuNTOX83380X5TavVIZIKqL98TAxRCBDR0Y2kOnDg1Y6xibFqdGqshBcgA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+\1. a事务先select，b事务insert确实会加一个gap锁，但是如果b事务commit，这个gap锁就会释放（释放后a事务可以随意操作）
+
+\2. a事务再select出来的结果在MVCC下还和第一次select一样
+
+\3. 接着a事务不加条件地update，这个update会作用在所有行上（包括b事务新加的）
+
+\4. a事务再次select就会出现b事务中的新行，并且这个新行已经被update修改了。
+
+
+
+Mysql官方给出的幻读解释是：只要在一个事务中，第二次select多出了row就算幻读，所以这个场景下，算出现幻读了。
+
+
+
+那么文章最后留个问题，你知道为什么上诉例子会出现幻读吗？欢迎留言讨论。
+
+
+
 # 索引优化
 
 ## JOIN 连接查询
@@ -546,8 +911,7 @@ explain select id ,empno,name from t_emp where deptId=100 order by name limit 10
 
 ##### Usingindex
 
-Usingindex 代表表示相应的 select 操作中使用了覆盖索引(CoveringIndex)，避免访问了表的数据行，效率不错！ 如果同时出现 using where，表明索引被用来执行索引键值的查找;如果没有同时出现 using where，表明索引只是
-用来读取数据而非利用索引执行查找。
+Usingindex 代表表示相应的 select 操作中使用了覆盖索引(CoveringIndex)，避免访问了表的数据行，效率不错！ 如果同时出现 using where，表明索引被用来执行索引键值的查找;如果没有同时出现 using where，表明索引只是用来读取数据而非利用索引执行查找。
 利用索引进行了排序或分组。
 
 ##### Usingwhere
@@ -1650,3 +2014,139 @@ unlock tables;
 ![](..\img\表锁总结.png)
 
 **读锁不会阻塞读，只会阻塞写。但是写锁会阻塞读和写。**
+
+# MySQL行锁和表锁的含义及区别
+
+## 一、前言
+
+*对于行锁和表锁的含义区别，在面试中应该是高频出现的，我们应该对MySQL中的锁有一个系统的认识，更详细的需要自行查阅资料，本篇为概括性的总结回答。*
+
+MySQL常用引擎有MyISAM和InnoDB，而InnoDB是mysql默认的引擎。MyISAM不支持行锁，而InnoDB支持行锁和表锁。
+
+**如何加锁？**
+
+MyISAM在执行查询语句（SELECT）前，会自动给涉及的所有表加读锁，在执行更新操作（UPDATE、DELETE、INSERT等）前，会自动给涉及的表加写锁，这个过程并不需要用户干预，因此用户一般不需要直接用LOCK TABLE命令给MyISAM表显式加锁。
+
+**显式加锁：**
+
+上共享锁（读锁）的写法：`lock in share mode`，例如：
+
+```
+select  math from zje where math>60 lock in share mode；
+```
+
+上排它锁（写锁）的写法：`for update`，例如：
+
+```
+select math from zje where math >60 for update；
+```
+
+## 二、表锁
+
+**不会出现死锁，发生锁冲突几率高，并发低。**
+
+### MyISAM引擎
+
+MyISAM在执行查询语句（select）前，会自动给涉及的所有表加读锁，在执行增删改操作前，会自动给涉及的表加写锁。
+
+MySQL的表级锁有两种模式：
+
+- 表共享读锁
+- 表独占写锁
+
+**读锁会阻塞写，写锁会阻塞读和写**
+
+- 对MyISAM表的读操作，不会阻塞其它进程对同一表的读请求，但会阻塞对同一表的写请求。只有当读锁释放后，才会执行其它进程的写操作。
+- 对MyISAM表的写操作，会阻塞其它进程对同一表的读和写操作，只有当写锁释放后，才会执行其它进程的读写操作。
+
+MyISAM不适合做写为主表的引擎，因为写锁后，其它线程不能做任何操作，大量的更新会使查询很难得到锁，从而造成永远阻塞
+
+## 三、行锁
+
+### InnoDB引擎
+
+**会出现死锁，发生锁冲突几率低，并发高。**
+
+在MySQL的InnoDB引擎支持行锁，与Oracle不同，MySQL的行锁是通过**索引加载**的，也就是说，行锁是加在索引响应的行上的，要是对应的**SQL语句没有走索引**，则会全表扫描，行锁则无法实现，取而代之的是表锁，此时其它事务无法对当前表进行更新或插入操作。
+
+```
+CREATE TABLE `user` (
+  `name` VARCHAR(32) DEFAULT NULL,
+  `count` INT(11) DEFAULT NULL,
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8
+
+-- 这里，我们建一个user表，主键为id
+
+
+
+-- A通过主键执行插入操作，但事务未提交
+update user set count=10 where id=1;
+-- B在此时也执行更新操作
+update user set count=10 where id=2;
+-- 由于是通过主键选中的，为行级锁，A和B操作的不是同一行，B执行的操作是可以执行的
+
+
+
+-- A通过name执行插入操作，但事务未提交
+update user set count=10 where name='xxx';
+-- B在此时也执行更新操作
+update user set count=10 where id=2;
+-- 由于是通过非主键或索引选中的，升级为为表级锁，-- B则无法对该表进行更新或插入操作，只有当A提交事务后，B才会成功执行
+```
+
+### for update
+
+如果在一条select语句后加上for update，则查询到的数据会被加上一条排它锁，其它事务可以读取，但不能进行更新和插入操作
+
+```
+-- A用户对id=1的记录进行加锁
+select * from user where id=1 for update;
+
+-- B用户无法对该记录进行操作
+update user set count=10 where id=1;
+
+-- A用户commit以后则B用户可以对该记录进行操作
+```
+
+**行锁的实现需要注意：**
+
+1. 行锁必须有索引才能实现，否则会自动锁全表，那么就不是行锁了。
+2. 两个事务不能锁同一个索引。
+3. insert，delete，update在事务中都会自动默认加上排它锁。
+
+**行锁场景：**
+
+A用户消费，service层先查询该用户的账户余额，若余额足够，则进行后续的扣款操作；这种情况查询的时候应该对该记录进行加锁。
+
+
+
+否则，B用户在A用户查询后消费前先一步将A用户账号上的钱转走，而此时A用户已经进行了用户余额是否足够的判断，则可能会出现余额已经不足但却扣款成功的情况。
+
+
+
+为了避免此情况，需要在A用户操作该记录的时候进行for update加锁
+
+### 扩展：间隙锁
+
+当我们用**范围条件**而不是相等条件检索数据，并请求共享或排他锁时，InnoDB会给符合条件的已有数据记录的索引项加锁；对于键值在条件范围内并不存在的记录，叫做间隙
+
+InnoDB也会对这个"间隙"加锁，这种锁机制就是所谓的间隙锁
+
+```
+-- 用户A
+update user set count=8 where id>2 and id<6
+
+-- 用户B
+update user set count=10 where id=5;
+```
+
+如果用户A在进行了上述操作后，事务还未提交，则B无法对2~6之间的记录进行更新或插入记录，会阻塞，当A将事务提交后，B的更新操作会执行。
+
+### 建议：
+
+- 尽可能让所有数据检索都通过索引来完成，避免无索引行锁升级为表锁
+- 合理设计索引，尽量缩小锁的范围
+- 尽可能减少索引条件，避免间隙锁
+- 尽量控制事务大小，减少锁定资源量和时间长度

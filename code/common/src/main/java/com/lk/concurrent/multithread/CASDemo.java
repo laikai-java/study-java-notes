@@ -1,4 +1,4 @@
-package com.lk.concurrent;
+package com.lk.concurrent.multithread;
 
 import java.util.ArrayList;
 import java.util.List;

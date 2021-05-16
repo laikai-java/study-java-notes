@@ -11,9 +11,9 @@ public class WaitNotify {
     static Object lock = new Object();
     public static void main(String[] args) throws Exception {
         Thread waitThread = new Thread(new Wait(), "WaitThread");
+        Thread notifyThread = new Thread(new Notify(), "NotifyThread");
         waitThread.start();
         TimeUnit.SECONDS.sleep(1);
-        Thread notifyThread = new Thread(new Notify(), "NotifyThread");
         notifyThread.start();
     }
 
