@@ -14,7 +14,7 @@ public class RedisUtils {
         jedisPool = new JedisPool(jpc,"127.0.0.1",6379);
     }
 
-    public static Jedis getJedis() throws Exception{
+    public static Jedis getJedis(){
         if(jedisPool == null)
             throw new NullPointerException("JedisPool is not OK.");
         return jedisPool.getResource();
