@@ -10,12 +10,14 @@
         <outputRelativeToContentRoot value="true" />
         <module name="spring" />
         <module name="generator" />
+        <module name="collection" />
         <module name="common" />
         <module name="redis" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
       <module name="code" target="8" />
+      <module name="collection" target="8" />
       <module name="common" target="8" />
       <module name="generator" target="8" />
       <module name="redis" target="8" />
@@ -25,6 +27,7 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="code" options="-parameters" />
+      <module name="collection" options="-parameters" />
       <module name="common" options="-parameters" />
       <module name="generator" options="-parameters" />
       <module name="redis" options="-parameters" />

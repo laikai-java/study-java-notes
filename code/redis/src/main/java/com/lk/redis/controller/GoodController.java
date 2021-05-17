@@ -1,7 +1,13 @@
 package com.lk.redis.controller;
 
 
+import com.lk.redis.lock.DistributedLock;
 import com.lk.redis.util.RedisUtils;
+import java.util.Collections;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Resource;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,12 +16,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import redis.clients.jedis.Jedis;
-
-import javax.annotation.Resource;
-import java.util.Collections;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 
 @RestController
 public class GoodController {
@@ -29,6 +29,32 @@ public class GoodController {
 
     @Value("${server.port}")
     String serverPort;
+
+    @Autowired
+    DistributedLock distributedLock;
+
+
+    @GetMapping("/distributedLock")
+    public Object distributedLock() throws InterruptedException {
+        String key = "add_information_lock";
+        String value = UUID.randomUUID().toString();
+        long expireTime = 5L;
+
+        boolean lock = distributedLock.lock(key, value, expireTime);
+        String threadName = Thread.currentThread().getName();
+        if (!lock){
+            System.out.println(threadName + " 未获取到锁...............................");
+            return "未获取到锁";
+        }
+
+        System.out.println(threadName + " 获得锁...............................");
+        Thread.sleep(1000*10);
+        distributedLock.unLock(key, value);
+        System.out.println(threadName + " 解锁了...............................");
+
+
+        return "成功";
+    }
 
     /**
      * jvm 单机锁
