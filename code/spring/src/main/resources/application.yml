@@ -4,7 +4,7 @@ spring:
   application:
     name: spring-demo
   datasource:
-    url: jdbc:mysql://112.124.23.142:3306/spring?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/spring?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=UTC
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -12,3 +12,5 @@ mybatis:
   mapper-locations: classpath:generator/*.xml
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+

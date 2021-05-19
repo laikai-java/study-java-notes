@@ -1,4 +1,4 @@
-package com.lk.generator.entity;
+package com.lk.spring.generator.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

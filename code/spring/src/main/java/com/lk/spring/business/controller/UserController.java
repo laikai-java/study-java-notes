@@ -1,7 +1,7 @@
 package com.lk.spring.business.controller;
 
 
-import com.lk.generator.entity.User;
+import com.lk.spring.generator.entity.User;
 import com.lk.spring.business.service.UserService;
 import org.springframework.web.bind.annotation.*;
 

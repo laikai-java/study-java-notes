@@ -1,6 +1,6 @@
 package com.lk.spring.business.mapper;
 
-import com.lk.generator.entity.User;
+import com.lk.spring.generator.entity.User;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

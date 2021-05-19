@@ -1,6 +1,6 @@
 package com.lk.spring.business.mapper;
 
-import com.lk.generator.entity.UserClass;
+import com.lk.spring.generator.entity.UserClass;
 
 public interface UserClassDao {
     int deleteByPrimaryKey(Integer id);

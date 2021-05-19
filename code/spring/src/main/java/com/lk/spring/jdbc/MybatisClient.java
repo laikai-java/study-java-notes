@@ -1,6 +1,6 @@
 package com.lk.spring.jdbc;
 
-import com.lk.generator.entity.User;
+import com.lk.spring.generator.entity.User;
 import com.lk.spring.business.mapper.UserDao;
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,7 +1,7 @@
 package com.lk.spring.jdbc;
 
 
-import com.lk.generator.entity.User;
+import com.lk.spring.generator.entity.User;
 
 import java.sql.*;
 

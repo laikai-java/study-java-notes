@@ -1,4 +1,4 @@
-package com.lk.generator.entity;
+package com.lk.spring.generator.entity;
 
 import java.io.Serializable;
 import lombok.Data;

@@ -4,7 +4,7 @@ import com.lk.spring.business.mapper.UserDao;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
-import com.lk.generator.entity.User;
+import com.lk.spring.generator.entity.User;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
